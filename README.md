@@ -46,6 +46,17 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 
 For the operational guide, user workflow, and system flow for this FIRE-PMIS project, see [PROJECT_MANUAL.md](./PROJECT_MANUAL.md).
 
+## Deploying to Render
+
+This repository includes a Render Blueprint (`render.yaml`) and Docker configuration. The Blueprint creates a Laravel web service and a PostgreSQL database. On startup, the web service runs outstanding migrations against the new, empty database.
+
+1. Generate a Laravel application key locally with `php artisan key:generate --show`. Copy the complete `base64:...` value; do not commit it.
+2. In Render, create a new Blueprint and select this GitHub repository and the `main` branch.
+3. When Render prompts for `APP_KEY`, paste the key from step 1, then create the Blueprint and wait for the first deploy to finish.
+4. Open the deployed service URL and register the first user.
+
+The current Blueprint uses Render's free plans for a demo deployment. Free web-service files (including uploaded documents and trained risk models) are not durable across restarts or deploys, and a free PostgreSQL database expires after 30 days. Do not use this setup for production or important data. For longer-term use, select paid Render plans and configure persistent or object storage for uploaded files and generated models.
+
 ## Contributing
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
