@@ -58,6 +58,8 @@ This repository includes a Render Blueprint (`render.yaml`) and Docker configura
 
 The Blueprint explicitly sets the Docker start command to `/usr/local/bin/render-entrypoint`, so a stale dashboard command override should be replaced when the Blueprint is synced. If the existing service was created with Render's Node runtime instead of Docker, create a new web service from this Blueprint; its deploy log should show a Docker image build, not a Node/Vite native build. Remove any old `DB_URL` environment variable so Laravel uses the Cloud SQL `DB_HOST` settings. The current Blueprint does not create a Render database.
 
+The Cloud SQL tables are managed by Firebase Data Connect. The Render startup script intentionally does not run Laravel migrations, because those migrations attempt to create tables that Data Connect already owns. Session and cache data use the web service's local filesystem, and queued jobs run synchronously; local runtime files are ephemeral on Render. Do not run `php artisan migrate` against this database.
+
 The web service's local filesystem (including uploaded documents and trained risk models) is not durable across restarts or deploys. Do not rely on local storage for important files; configure persistent or object storage for production.
 
 ## Firebase Data Connect schema
