@@ -5,6 +5,7 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./Dockerfile
+    dockerCommand: /usr/local/bin/render-entrypoint
     healthCheckPath: /up
     envVars:
       - key: APP_ENV
