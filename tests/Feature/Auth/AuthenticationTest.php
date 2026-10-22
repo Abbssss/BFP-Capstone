@@ -17,6 +17,16 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_login_form_uses_https_when_forwarded_by_a_trusted_proxy(): void
+    {
+        $response = $this->withServerVariables([
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ])->get('/login');
+
+        $response->assertOk();
+        $response->assertSee('action="https://localhost/login"', false);
+    }
+
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
