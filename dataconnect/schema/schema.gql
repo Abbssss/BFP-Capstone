@@ -1,0 +1,147 @@
+type User @table(name: "users") {
+  id: Int64! @col(dataType: "bigserial")
+  name: String!
+  email: String! @unique
+  emailVerifiedAt: Timestamp @col(name: "email_verified_at")
+  password: String!
+  role: String! @default(value: "maintenance")
+  status: String! @default(value: "active")
+  officeCode: String @col(name: "office_code")
+  rememberToken: String @col(name: "remember_token")
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type EquipmentCategory @table(name: "equipment_categories") {
+  id: Int64! @col(dataType: "bigserial")
+  name: String! @unique
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type Equipment @table(name: "equipment") {
+  id: Int64! @col(dataType: "bigserial")
+  assetCode: String! @unique @col(name: "asset_code")
+  equipmentName: String! @col(name: "equipment_name")
+  category: String!
+  assetTag: String @unique @col(name: "asset_tag")
+  serialNumber: String @unique @col(name: "serial_number")
+  manufacturer: String
+  model: String
+  commissionDate: Date @col(name: "commission_date")
+  serviceAgeYears: Int! @default(value: 0) @col(name: "service_age_years")
+  location: String
+  assignedPersonnelId: Int64 @col(name: "assigned_personnel")
+  assignedPersonnel: User @ref(fields: "assignedPersonnelId", references: "id")
+  officeCode: String @col(name: "office_code")
+  status: String! @default(value: "Operational")
+  lastInspectionDate: Date @col(name: "last_inspection_date")
+  nextInspectionDate: Date @col(name: "next_inspection_date")
+  engineOperatingHours: Int @col(name: "engine_operating_hours")
+  runtimeCycles: Int @col(name: "runtime_cycles")
+  mechanicalFailureCount: Int! @default(value: 0) @col(name: "mechanical_failure_count")
+  lastMaintenanceDate: Date @col(name: "last_maintenance_date")
+  maintenanceIntervalDays: Int @col(name: "maintenance_interval_days")
+  description: String
+  remarks: String
+  inspectionDefectsCount: Int! @default(value: 0) @col(name: "inspection_defects_count")
+  lastInspectionOutcome: String @col(name: "last_inspection_outcome")
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type Inspection @table(name: "inspections") {
+  id: Int64! @col(dataType: "bigserial")
+  equipmentId: Int64! @col(name: "equipment_id")
+  equipment: Equipment! @ref(fields: "equipmentId", references: "id")
+  referenceNumber: String! @unique @col(name: "reference_number")
+  inspectionDate: Timestamp! @col(name: "inspection_date")
+  inspectorName: String! @col(name: "inspector_name")
+  inspectionType: String! @col(name: "inspection_type")
+  conditionObserved: String @col(name: "condition_observed")
+  functionalTestResult: String @col(name: "functional_test_result")
+  defectsIdentified: String @col(name: "defects_identified")
+  safetyConcerns: String @col(name: "safety_concerns")
+  recommendedAction: String @col(name: "recommended_action")
+  notes: String
+  supportingDocument: String @col(name: "supporting_document")
+  outcome: String! @default(value: "Passed")
+  status: String! @default(value: "finalized")
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type Maintenance @table(name: "maintenances") {
+  id: Int64! @col(dataType: "bigserial")
+  equipmentId: Int64! @col(name: "equipment_id")
+  equipment: Equipment! @ref(fields: "equipmentId", references: "id")
+  requestNumber: String! @unique @col(name: "request_number")
+  maintenanceType: String! @default(value: "preventive") @col(name: "maintenance_type")
+  priority: String! @default(value: "Medium")
+  status: String! @default(value: "Pending")
+  reportedIssue: String @col(name: "reported_issue")
+  diagnosis: String
+  actionTaken: String @col(name: "action_taken")
+  partsReplaced: String @col(name: "parts_replaced")
+  maintenanceCost: Float @col(name: "maintenance_cost", dataType: "numeric(10,2)")
+  startDate: Date @col(name: "start_date")
+  completionDate: Date @col(name: "completion_date")
+  technicianName: String @col(name: "technician_name")
+  assignedToId: Int64 @col(name: "assigned_to_id")
+  assignedTo: User @ref(fields: "assignedToId", references: "id")
+  downtimeHours: Float @col(name: "downtime_hours", dataType: "numeric(8,2)")
+  maintenanceOutcome: String @col(name: "maintenance_outcome")
+  nextRecommendedMaintenanceDate: Date @col(name: "next_recommended_maintenance_date")
+  supportingDocument: String @col(name: "supporting_document")
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type EquipmentStatusHistory @table(name: "equipment_status_histories") {
+  id: Int64! @col(dataType: "bigserial")
+  equipmentId: Int64! @col(name: "equipment_id")
+  equipment: Equipment! @ref(fields: "equipmentId", references: "id")
+  oldStatus: String @col(name: "old_status")
+  newStatus: String! @col(name: "new_status")
+  changedById: Int64 @col(name: "changed_by")
+  changedBy: User @ref(fields: "changedById", references: "id")
+  reason: String
+  changedAt: Timestamp! @col(name: "changed_at")
+}
+
+type ModelVersion @table(name: "model_versions") {
+  id: Int64! @col(dataType: "bigserial")
+  versionName: String! @unique @col(name: "version_name")
+  accuracy: Float! @default(value: 0)
+  precision: Float! @default(value: 0)
+  recall: Float! @default(value: 0)
+  f1Score: Float! @default(value: 0) @col(name: "f1_score")
+  confusionMatrix: Any @col(name: "confusion_matrix")
+  trainingDate: Timestamp @col(name: "training_date")
+  notes: String
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type RiskPrediction @table(name: "risk_predictions") {
+  id: Int64! @col(dataType: "bigserial")
+  equipmentId: Int64! @col(name: "equipment_id")
+  equipment: Equipment! @ref(fields: "equipmentId", references: "id")
+  modelVersionId: Int64 @col(name: "model_version_id")
+  modelVersion: ModelVersion @ref(fields: "modelVersionId", references: "id")
+  predictionLabel: String! @col(name: "prediction_label")
+  confidence: Float! @default(value: 0)
+  predictionTimestamp: Timestamp! @default(expr: "request.time") @col(name: "prediction_timestamp")
+  detailsJson: String @col(name: "details_json")
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}
+
+type RoleModulePermission @table(name: "role_module_permissions") {
+  id: Int64! @col(dataType: "bigserial")
+  role: String!
+  module: String!
+  canAccess: Boolean! @default(value: false) @col(name: "can_access")
+  createdAt: Timestamp @col(name: "created_at")
+  updatedAt: Timestamp @col(name: "updated_at")
+}

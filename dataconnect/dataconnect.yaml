@@ -1,0 +1,13 @@
+specVersion: "1.0"
+serviceId: bfpcapstone-42f74-service
+location: us-east4
+schema:
+  source: schema
+  datasource:
+    postgresql:
+      database: bfpcapstone-42f74-database
+      cloudSql:
+        instanceId: bfpcapstone-42f74-instance
+schemaValidation: COMPATIBLE
+connectorDirs:
+  - connectors/bfp

@@ -60,6 +60,18 @@ The Blueprint explicitly sets the Docker start command to `/usr/local/bin/render
 
 The web service's local filesystem (including uploaded documents and trained risk models) is not durable across restarts or deploys. Do not rely on local storage for important files; configure persistent or object storage for production.
 
+## Firebase Data Connect schema
+
+The `dataconnect/` directory contains an initial Firebase Data Connect schema based on the BFP domain migrations and the service/database identifiers shown during setup. It is not yet deployed, does not import the current XAMPP MySQL data, and does not switch Laravel off its existing PostgreSQL/Eloquent connection.
+
+After reviewing the schema, install the Firebase CLI, authenticate with the Google account that owns the Firebase project, then run:
+
+```powershell
+firebase deploy --only dataconnect:bfpcapstone-42f74-service:schema
+```
+
+Review the schema migration plan before accepting it. The Laravel-to-Data-Connect integration and transfer of existing XAMPP MySQL records are separate follow-up work.
+
 ## Contributing
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
