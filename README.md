@@ -48,23 +48,23 @@ For the operational guide, user workflow, and system flow for this FIRE-PMIS pro
 
 ## Deploying to Render
 
-This repository includes a Render Blueprint (`render.yaml`) and Docker configuration for a Laravel web service that connects to the Google Cloud SQL PostgreSQL instance. On startup, the web service runs outstanding migrations against the configured database.
+This repository includes a Render Blueprint (`render.yaml`) and Docker configuration for a Laravel web service with a Render PostgreSQL database. On startup, the web service runs Laravel migrations against that database.
 
 1. Generate a Laravel application key locally with `php artisan key:generate --show`. Copy the complete `base64:...` value; do not commit it.
 2. In Render, create a Blueprint and select this GitHub repository and the `main` branch.
-3. When Render prompts for `APP_KEY`, `DB_HOST`, `DB_USERNAME`, and `DB_PASSWORD`, enter the Laravel key and the Cloud SQL connection details. Use the instance's public IP for `DB_HOST`; the database name is prefilled from the Cloud SQL setup.
-4. In Google Cloud SQL, enable a public IP and add the Render web service's outbound IP ranges to the instance's authorized networks. Find the ranges in the Render service's **Connect > Outbound** panel. Keep PostgreSQL SSL enabled.
-5. Wait for the first deploy to finish, then open the deployed service URL and register the first user.
+3. When Render prompts for `APP_KEY`, provide a Laravel key generated locally with `php artisan key:generate --show`. Keep it private.
+4. Create/sync the Blueprint resources and wait for the first deploy to finish. The Blueprint supplies the Render database connection automatically. It may create a new web service and database alongside your existing Cloud SQL-connected service.
+5. Open the new `bfp-capstone` web service URL and register the first user. If reusing an existing service, remove old Cloud SQL variables (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, and `DB_SSLMODE`) so they do not confuse future configuration.
 
-The Blueprint explicitly sets the Docker start command to `/usr/local/bin/render-entrypoint`, so a stale dashboard command override should be replaced when the Blueprint is synced. If the existing service was created with Render's Node runtime instead of Docker, create a new web service from this Blueprint; its deploy log should show a Docker image build, not a Node/Vite native build. Remove any old `DB_URL` environment variable so Laravel uses the Cloud SQL `DB_HOST` settings. The current Blueprint does not create a Render database.
+The Blueprint explicitly sets the Docker start command to `/usr/local/bin/render-entrypoint`, so a stale dashboard command override should be replaced when the Blueprint is synced. If the existing service was created with Render's Node runtime instead of Docker, create a new web service from this Blueprint; its deploy log should show a Docker image build, not a Node/Vite native build.
 
-The Cloud SQL tables are managed by Firebase Data Connect. The Render startup script intentionally does not run Laravel migrations, because those migrations attempt to create tables that Data Connect already owns. Session and cache data use the web service's local filesystem, and queued jobs run synchronously; local runtime files are ephemeral on Render. Do not run `php artisan migrate` against this database.
+The Laravel app uses the Render PostgreSQL database and Eloquent; it does not use Firebase Data Connect. The Firebase Data Connect schema is a separate setup and is not required for this deployment. Render free PostgreSQL databases expire after 30 days, so do not use the free database for important long-term data.
 
 The web service's local filesystem (including uploaded documents and trained risk models) is not durable across restarts or deploys. Do not rely on local storage for important files; configure persistent or object storage for production.
 
 ## Firebase Data Connect schema
 
-The `dataconnect/` directory contains an initial Firebase Data Connect schema based on the BFP domain migrations and the service/database identifiers shown during setup. It is not yet deployed, does not import the current XAMPP MySQL data, and does not switch Laravel off its existing PostgreSQL/Eloquent connection.
+The `dataconnect/` directory contains an initial Firebase Data Connect schema based on the BFP domain migrations. It is deployed to the Firebase project’s separate Cloud SQL database, but the Laravel Render app does not use it and no XAMPP MySQL data has been imported there.
 
 After reviewing the schema, install the Firebase CLI, authenticate with the Google account that owns the Firebase project, then run:
 

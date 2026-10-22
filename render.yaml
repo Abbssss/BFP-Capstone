@@ -18,23 +18,22 @@ services:
         value: stderr
       - key: DB_CONNECTION
         value: pgsql
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        value: "5432"
-      - key: DB_DATABASE
-        value: bfpcapstone-42f74-database
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_SSLMODE
-        value: require
+      - key: DB_URL
+        fromDatabase:
+          name: bfp-capstone-db
+          property: connectionString
       - key: SESSION_DRIVER
-        value: file
+        value: database
       - key: CACHE_STORE
-        value: file
+        value: database
       - key: QUEUE_CONNECTION
-        value: sync
+        value: database
       - key: PYTHON_BINARY
         value: /opt/venv/bin/python
+
+databases:
+  - name: bfp-capstone-db
+    databaseName: bfp_capstone
+    user: bfp_capstone
+    plan: free
+    region: singapore
