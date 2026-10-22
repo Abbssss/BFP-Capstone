@@ -54,7 +54,14 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_logout(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'super_admin']);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('form method="POST" action="'.route('logout').'"', false)
+            ->assertSee('<button type="submit"', false)
+            ->assertDontSee('href="'.route('logout').'"', false);
 
         $response = $this->actingAs($user)->post('/logout');
 
