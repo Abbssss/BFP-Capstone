@@ -48,14 +48,17 @@ For the operational guide, user workflow, and system flow for this FIRE-PMIS pro
 
 ## Deploying to Render
 
-This repository includes a Render Blueprint (`render.yaml`) and Docker configuration. The Blueprint creates a Laravel web service and a PostgreSQL database. On startup, the web service runs outstanding migrations against the new, empty database.
+This repository includes a Render Blueprint (`render.yaml`) and Docker configuration for a Laravel web service that connects to the Google Cloud SQL PostgreSQL instance. On startup, the web service runs outstanding migrations against the configured database.
 
 1. Generate a Laravel application key locally with `php artisan key:generate --show`. Copy the complete `base64:...` value; do not commit it.
 2. In Render, create a new Blueprint and select this GitHub repository and the `main` branch.
-3. When Render prompts for `APP_KEY`, paste the key from step 1, then create the Blueprint and wait for the first deploy to finish.
-4. Open the deployed service URL and register the first user.
+3. When Render prompts for `APP_KEY`, `DB_HOST`, `DB_USERNAME`, and `DB_PASSWORD`, enter the Laravel key and the Cloud SQL connection details. Use the instance's public IP for `DB_HOST`; the database name is prefilled from the Cloud SQL setup.
+4. In Google Cloud SQL, enable a public IP and add the Render web service's outbound IP ranges to the instance's authorized networks. Find the ranges in the Render service's **Connect > Outbound** panel. Keep PostgreSQL SSL enabled.
+5. Wait for the first deploy to finish, then open the deployed service URL and register the first user.
 
-The current Blueprint uses Render's free plans for a demo deployment. Free web-service files (including uploaded documents and trained risk models) are not durable across restarts or deploys, and a free PostgreSQL database expires after 30 days. Do not use this setup for production or important data. For longer-term use, select paid Render plans and configure persistent or object storage for uploaded files and generated models.
+If the Render service already exists from the earlier Blueprint, remove its old `DB_URL` environment variable so Laravel uses the Cloud SQL `DB_HOST` settings. The current Blueprint does not create a Render database.
+
+The web service's local filesystem (including uploaded documents and trained risk models) is not durable across restarts or deploys. Do not rely on local storage for important files; configure persistent or object storage for production.
 
 ## Contributing
 
