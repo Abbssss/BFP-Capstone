@@ -8,6 +8,7 @@ use App\Http\Controllers\OperationsPagesController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RiskController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,17 +16,28 @@ Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
+    Route::get('/search', SearchController::class)->name('search');
 
     Route::get('/equipment/import-template', [EquipmentController::class, 'importTemplate'])
         ->name('equipment.import-template')
-        ->middleware('permission:equipment');
+        ->middleware(['permission:equipment', 'role:admin,super_admin']);
     Route::post('/equipment/import', [EquipmentController::class, 'import'])
         ->name('equipment.import')
-        ->middleware('permission:equipment');
+        ->middleware(['permission:equipment', 'role:admin,super_admin']);
     Route::post('/equipment/categories', [EquipmentController::class, 'storeCategory'])
         ->name('equipment.categories.store')
         ->middleware(['permission:equipment', 'role:super_admin']);
-    Route::resource('equipment', EquipmentController::class)->except('destroy')->middleware('permission:equipment');
+    Route::resource('equipment', EquipmentController::class)->only('index')->middleware('permission:equipment');
+    Route::resource('equipment', EquipmentController::class)
+        ->only(['create', 'store'])
+        ->middleware(['permission:equipment', 'role:admin,super_admin']);
+    Route::get('/equipment/{equipment}/edit', [EquipmentController::class, 'edit'])
+        ->name('equipment.edit')
+        ->middleware(['permission:equipment', 'role:admin,super_admin']);
+    Route::match(['put', 'patch'], '/equipment/{equipment}', [EquipmentController::class, 'update'])
+        ->name('equipment.update')
+        ->middleware('permission:equipment');
+    Route::resource('equipment', EquipmentController::class)->only('show')->middleware('permission:equipment');
     Route::delete('/equipment/{equipment}', [EquipmentController::class, 'destroy'])
         ->name('equipment.destroy')
         ->middleware(['permission:equipment', 'role:super_admin']);

@@ -76,4 +76,18 @@ class OfficeScope
 
         return $rule;
     }
+
+    public static function personnelExistsRule(?User $user = null): Exists
+    {
+        $user ??= auth()->user();
+        $rule = Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', '<>', 'super_admin'));
+
+        if ($user && $user->role !== 'super_admin') {
+            $rule->where(filled($user->office_code)
+                ? fn ($query) => $query->where('office_code', $user->office_code)
+                : fn ($query) => $query->whereRaw('1 = 0'));
+        }
+
+        return $rule;
+    }
 }

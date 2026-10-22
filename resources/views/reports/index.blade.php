@@ -2,14 +2,6 @@
     <x-slot name="header"><h2>Reports</h2></x-slot>
 
     <div class="ops-page report-page">
-        <div class="ops-intro">
-            <div>
-                <span class="ops-eyebrow">Operations</span>
-                <h1>Reports</h1>
-                <p>Select an operational report, configure its coverage, then preview before export.</p>
-            </div>
-        </div>
-
         <div class="report-layout">
             <nav class="ops-card report-tabs" aria-label="Report types">
                 @foreach($reportOptions as $key => [$title, $description])

@@ -195,7 +195,7 @@
                             <tr>
                                 <td><strong>{{ $maintenance->equipment?->equipment_name ?? 'Equipment record unavailable' }}</strong></td>
                                 <td>{{ $maintenance->maintenance_type }}</td>
-                                <td>{{ $maintenance->technician_name ?: 'Unassigned' }}</td>
+                                <td>{{ $maintenance->assignedTo?->name ?? $maintenance->equipment?->assignedUser?->name ?? ($maintenance->technician_name ?: 'Unassigned') }}</td>
                                 <td>{{ $maintenanceDue?->isToday() ? 'Today' : ($maintenanceDue?->format('M d') ?? 'Not set') }}</td>
                                 <td><span class="ops-pill {{ $maintenancePill }}">{{ $maintenanceStatus }}</span></td>
                             </tr>

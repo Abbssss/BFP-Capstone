@@ -191,6 +191,105 @@ class OfficeCodeIsolationTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_assign_equipment_to_personnel_in_the_same_office(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'ANA-01',
+        ]);
+        $personnel = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'ANA-01',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/equipment')
+            ->assertOk()
+            ->assertSee('data-equipment-office-code', false)
+            ->assertSee('data-equipment-personnel-select', false)
+            ->assertSee('data-office-code="ANA-01"', false);
+
+        $this->post('/equipment', [
+            'equipment_name' => 'Assigned office equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'assigned_personnel' => $personnel->id,
+        ])->assertRedirect('/equipment')
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('equipment', [
+            'equipment_name' => 'Assigned office equipment',
+            'office_code' => 'ANA-01',
+            'assigned_personnel' => $personnel->id,
+        ]);
+    }
+
+    public function test_super_admin_can_choose_personnel_before_entering_the_equipment_office_code(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'status' => 'active',
+            'office_code' => null,
+        ]);
+        $personnel = User::factory()->create([
+            'name' => 'Selectable Personnel',
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'ANA-01',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->get('/equipment')
+            ->assertOk()
+            ->assertSee('Selectable Personnel')
+            ->assertSee('Select a person to automatically set the equipment office code.');
+
+        $this->post('/equipment', [
+            'equipment_name' => 'Super Admin Assigned Equipment',
+            'category' => 'Fire Engine',
+            'office_code' => 'ANA-01',
+            'status' => 'Operational',
+            'assigned_personnel' => $personnel->id,
+        ])->assertRedirect('/equipment')
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('equipment', [
+            'equipment_name' => 'Super Admin Assigned Equipment',
+            'office_code' => 'ANA-01',
+            'assigned_personnel' => $personnel->id,
+        ]);
+    }
+
+    public function test_admin_cannot_assign_a_maintenance_task_to_personnel_from_another_office(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'ANA-01',
+        ]);
+        $otherPersonnel = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'OTHER-02',
+        ]);
+        $equipment = $this->equipment('ANA-ASSIGNMENT-PUMP', 'ANA-01');
+
+        $this->actingAs($admin)->post('/maintenances', [
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $otherPersonnel->id,
+            'request_number' => 'CROSS-OFFICE-MAINTENANCE',
+            'maintenance_type' => 'Preventive',
+            'priority' => 'Medium',
+            'status' => 'Scheduled',
+        ])->assertSessionHasErrors('assigned_to_id');
+
+        $this->assertDatabaseMissing('maintenances', [
+            'request_number' => 'CROSS-OFFICE-MAINTENANCE',
+        ]);
+    }
+
     public function test_changing_a_users_office_clears_equipment_assignment_from_the_previous_office(): void
     {
         $superAdmin = User::factory()->create([

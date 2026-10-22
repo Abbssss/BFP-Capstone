@@ -2,9 +2,6 @@
     <x-slot name="header"><h2>Audit Logs</h2></x-slot>
 
     <div class="ops-page">
-        <div class="ops-intro">
-            <div><span class="ops-eyebrow">Governance</span><h1>Audit logs</h1><p>Traceable history of access, record changes, approvals, and prediction activity.</p></div>
-        </div>
         <div class="ops-note" role="status"><strong>Audit logging is not configured.</strong> The application does not currently persist access or change events, so there are no audit records to display or export.</div>
         <section class="ops-card" style="margin-top: 14px">
             <div class="ops-table-scroll">

@@ -2,16 +2,6 @@
     <x-slot name="header"><h2>{{ $title }}</h2></x-slot>
 
     <div class="ops-page {{ $title === 'Repairs' ? 'repairs-page' : '' }}">
-        <div class="ops-intro">
-            <div>
-                <span class="ops-eyebrow">Live data</span>
-                <h1>{{ $title }}</h1>
-                <p>{{ $description }}</p>
-            </div>
-            @if($createUrl)
-                <a class="ops-button" href="{{ $createUrl }}">＋ Create new</a>
-            @endif
-        </div>
         @if($notice)
             <div class="ops-note mb-3">{{ $notice }}</div>
         @endif

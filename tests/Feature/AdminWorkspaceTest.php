@@ -199,6 +199,63 @@ class AdminWorkspaceTest extends TestCase
             ->assertDontSee('Unassigned service');
     }
 
+    public function test_maintenance_tasks_can_be_assigned_to_a_personnel_user_and_show_on_their_dashboard(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'STA-ANA',
+        ]);
+        $maintenanceUser = User::factory()->create([
+            'name' => 'Assigned Maintenance User',
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'STA-ANA',
+        ]);
+        $equipment = Equipment::create([
+            'asset_code' => 'FP-ASSIGN-001',
+            'equipment_name' => 'Task Assignment Pump',
+            'category' => 'Pump',
+            'status' => 'Operational',
+            'assigned_personnel' => $maintenanceUser->id,
+            'office_code' => 'STA-ANA',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('maintenances.create'))
+            ->assertOk()
+            ->assertSee('Who will do the job?')
+            ->assertSee('data-assigned-personnel-id="'.$maintenanceUser->id.'"', false);
+
+        $this->post(route('maintenances.store'), [
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'request_number' => 'REQ-ASSIGNED-001',
+            'maintenance_type' => 'Scheduled pump service',
+            'priority' => 'High',
+            'status' => 'Scheduled',
+            'start_date' => today()->toDateString(),
+        ])->assertRedirect(route('maintenances.index'));
+
+        $this->assertDatabaseHas('maintenances', [
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'request_number' => 'REQ-ASSIGNED-001',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('maintenances.index'))
+            ->assertOk()
+            ->assertSee('Assigned Maintenance User')
+            ->assertSee('Scheduled pump service');
+
+        $this->actingAs($maintenanceUser)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Task Assignment Pump')
+            ->assertSee('Scheduled pump service');
+    }
+
     public function test_dashboard_monitoring_lists_pending_work_and_completed_tab_loads(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
@@ -301,8 +358,8 @@ class AdminWorkspaceTest extends TestCase
         $this->actingAs($admin)
             ->get('/repairs')
             ->assertOk()
-            ->assertSee('Create new')
             ->assertSee('Add new')
+            ->assertDontSee('Create new')
             ->assertSee('Record')
             ->assertSee('Type')
             ->assertSee('Owner')

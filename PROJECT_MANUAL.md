@@ -85,6 +85,8 @@ Equipment records can be viewed, created, edited, and deleted by authorized user
 
 The equipment table displays each asset's latest risk classification. Super admins can add equipment categories, which then become available in equipment forms. Authorized equipment users can bulk import records from CSV using the downloadable template; imports support up to 500 records and are validated as a complete file before anything is saved.
 
+Equipment with an `Out of Service` or `Retired` status is kept in the equipment module's Archive section and is excluded from the All equipment list. The archive is office-scoped like the rest of the equipment module.
+
 ### 3.3 Inspections
 
 Inspections record equipment condition findings and defect information.

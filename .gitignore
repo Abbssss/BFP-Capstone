@@ -13,6 +13,7 @@
 /.zed
 /auth.json
 /node_modules
+/python/__pycache__/
 /public/build
 /public/hot
 /public/storage

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Equipment;
 use App\Models\EquipmentStatusHistory;
 use App\Models\Maintenance;
+use App\Models\User;
 use App\Support\OfficeScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,12 +21,13 @@ class MaintenanceController extends Controller
             'status' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', 'string', 'max:100'],
         ]);
-        $maintenances = OfficeScope::records(Maintenance::query())->with('equipment')
+        $maintenances = OfficeScope::records(Maintenance::query())->with('assignedTo', 'equipment.assignedUser')
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('request_number', 'like', '%'.$search.'%')
                         ->orWhere('maintenance_type', 'like', '%'.$search.'%')
                         ->orWhere('technician_name', 'like', '%'.$search.'%')
+                        ->orWhereHas('assignedTo', fn ($userQuery) => $userQuery->where('name', 'like', '%'.$search.'%'))
                         ->orWhereHas('equipment', fn ($equipmentQuery) => $equipmentQuery->where('equipment_name', 'like', '%'.$search.'%'));
                 });
             })
@@ -34,7 +36,8 @@ class MaintenanceController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString();
-        $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipmentOptions = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
+        $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
         $equipmentUnderMaintenance = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->whereIn('status', ['Under Maintenance', 'Under Repair'])
             ->orderBy('equipment_name')
@@ -42,15 +45,16 @@ class MaintenanceController extends Controller
         $statuses = OfficeScope::records(Maintenance::query())->select('status')->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         $types = OfficeScope::records(Maintenance::query())->select('maintenance_type')->whereNotNull('maintenance_type')->distinct()->orderBy('maintenance_type')->pluck('maintenance_type');
 
-        return view('maintenances.index', compact('maintenances', 'equipmentOptions', 'equipmentUnderMaintenance', 'statuses', 'types'));
+        return view('maintenances.index', compact('maintenances', 'equipmentOptions', 'personnelOptions', 'equipmentUnderMaintenance', 'statuses', 'types'));
     }
 
     public function create(Request $request): View
     {
-        $equipment = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipment = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
+        $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
         $defaultMaintenanceType = $request->query('type') === 'Repair' ? 'Repair' : 'Preventive';
 
-        return view('maintenances.create', compact('equipment', 'defaultMaintenanceType'));
+        return view('maintenances.create', compact('equipment', 'personnelOptions', 'defaultMaintenanceType'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -61,6 +65,7 @@ class MaintenanceController extends Controller
 
         $validated = $request->validate([
             'equipment_id' => ['required', OfficeScope::equipmentExistsRule()],
+            'assigned_to_id' => ['nullable', OfficeScope::personnelExistsRule()->where('status', 'active')],
             'request_number' => ['required', 'string', 'unique:maintenances,request_number'],
             'maintenance_type' => ['required', 'string'],
             'priority' => ['required', 'string'],
@@ -193,9 +198,10 @@ class MaintenanceController extends Controller
     public function edit(string $id): View
     {
         $maintenance = OfficeScope::records(Maintenance::query())->findOrFail($id);
-        $equipment = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipment = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
+        $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
 
-        return view('maintenances.edit', compact('maintenance', 'equipment'));
+        return view('maintenances.edit', compact('maintenance', 'equipment', 'personnelOptions'));
     }
 
     public function update(Request $request, string $id): RedirectResponse
@@ -203,6 +209,7 @@ class MaintenanceController extends Controller
         $maintenance = OfficeScope::records(Maintenance::query())->findOrFail($id);
         $validated = $request->validate([
             'equipment_id' => ['required', OfficeScope::equipmentExistsRule()],
+            'assigned_to_id' => ['nullable', OfficeScope::personnelExistsRule()->where('status', 'active')],
             'request_number' => ['required', 'string', 'unique:maintenances,request_number,'.$maintenance->id],
             'maintenance_type' => ['required', 'string'],
             'priority' => ['required', 'string'],

@@ -14,7 +14,7 @@
             * { box-sizing: border-box; }
             body { margin: 0; min-width: 320px; }
             .auth-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(380px, 45.2%) 1fr; background: #fff; }
-            .auth-hero { min-height: 100vh; position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 26px clamp(28px, 7.3vw, 90px) 28px; color: #fff; overflow: hidden; background: #06172c url('https://images.unsplash.com/photo-1685449856292-3016672f0db0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=85&w=1600') center / cover no-repeat; }
+            .auth-hero { min-height: 100vh; position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 26px clamp(28px, 7.3vw, 90px) 28px; color: #fff; overflow: hidden; background: #06172c url('{{ asset('images/login-fire-trucks.jpg') }}') center / cover no-repeat; }
             .auth-hero::before { position: absolute; inset: 0; content: ""; background: linear-gradient(180deg, rgba(4, 18, 37, .80) 0%, rgba(4, 18, 37, .76) 42%, rgba(4, 18, 37, .94) 100%); }
             .auth-brand-wrap, .auth-hero-copy, .auth-legal { position: relative; z-index: 1; }
             .auth-back { display: inline-block; margin-bottom: 30px; color: #e1eaf5; font-size: 12px; text-decoration: none; }

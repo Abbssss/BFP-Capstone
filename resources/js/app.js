@@ -52,3 +52,79 @@ document.querySelectorAll('dialog.app-modal[data-open-on-load="true"]').forEach(
         dialog.showModal();
     }
 });
+
+const syncMaintenanceAssignee = (equipmentSelect, useEquipmentAssignee = false) => {
+    const form = equipmentSelect.closest('form');
+    const field = form?.querySelector('[data-equipment-assignee-field]');
+    const assigneeSelect = field?.querySelector('[data-maintenance-assignee-select]');
+    const assignedPersonnel = field?.querySelector('[data-equipment-assigned-personnel]');
+    const equipmentOption = equipmentSelect.selectedOptions[0];
+
+    if (!field || !assigneeSelect || !equipmentOption?.value) {
+        if (field) {
+            field.hidden = true;
+        }
+        return;
+    }
+
+    field.hidden = false;
+    assignedPersonnel.textContent = equipmentOption.dataset.assignedPersonnelName
+        ? `Equipment currently assigned to ${equipmentOption.dataset.assignedPersonnelName}.`
+        : 'No personnel is currently assigned to this equipment.';
+
+    if (useEquipmentAssignee || !assigneeSelect.value) {
+        const assignedId = equipmentOption.dataset.assignedPersonnelId;
+        assigneeSelect.value = [...assigneeSelect.options].some((option) => option.value === assignedId)
+            ? assignedId
+            : '';
+    }
+};
+
+document.querySelectorAll('[data-assignee-equipment-select]').forEach((equipmentSelect) => {
+    syncMaintenanceAssignee(equipmentSelect);
+    equipmentSelect.addEventListener('change', () => syncMaintenanceAssignee(equipmentSelect, true));
+});
+
+const syncEquipmentPersonnelOptions = (form) => {
+    const officeInput = form.querySelector('[data-equipment-office-code]');
+    const personnelSelect = form.querySelector('[data-equipment-personnel-select]');
+    if (!officeInput || !personnelSelect) {
+        return;
+    }
+
+    const officeCode = officeInput.value.trim().toUpperCase();
+    const selectedOption = personnelSelect.selectedOptions[0];
+    const shouldFilterByOffice = officeCode !== '';
+
+    [...personnelSelect.options].forEach((option) => {
+        if (!option.value) {
+            return;
+        }
+
+        const matchesOffice = !shouldFilterByOffice
+            || option.dataset.officeCode?.trim().toUpperCase() === officeCode;
+        option.hidden = !matchesOffice;
+        option.disabled = !matchesOffice;
+    });
+
+    if (selectedOption?.value && selectedOption.disabled) {
+        personnelSelect.value = '';
+    }
+};
+
+document.querySelectorAll('form').forEach((form) => {
+    const officeInput = form.querySelector('[data-equipment-office-code]');
+    if (!officeInput || !form.querySelector('[data-equipment-personnel-select]')) {
+        return;
+    }
+
+    syncEquipmentPersonnelOptions(form);
+    officeInput.addEventListener('input', () => syncEquipmentPersonnelOptions(form));
+    form.querySelector('[data-equipment-personnel-select]').addEventListener('change', (event) => {
+        const selectedOption = event.currentTarget.selectedOptions[0];
+        if (!officeInput.readOnly && selectedOption?.dataset.officeCode) {
+            officeInput.value = selectedOption.dataset.officeCode;
+            syncEquipmentPersonnelOptions(form);
+        }
+    });
+});

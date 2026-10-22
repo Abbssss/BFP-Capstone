@@ -77,6 +77,29 @@ def build_model():
     ])
 
 
+def calculate_risk_percentage(record):
+    limits = [
+        ('service_age', 20, 0),
+        ('engine_operating_hours', 10000, 0),
+        ('runtime_cycles', 1000, 0),
+        ('mechanical_failures', 10, 0),
+        ('days_since_last_inspection', 365, 0),
+        ('days_since_last_maintenance', 365, 0),
+        ('defects_count', 10, 0),
+        ('inspection_outcome', 3, 1),
+        ('maintenance_frequency', 365, 0),
+    ]
+    normalized = [
+        min(1.0, max(0.0, (float(record.get(feature, 0)) - offset) / limit))
+        for feature, limit, offset in limits
+    ]
+    return sum(normalized) / len(normalized) * 100
+
+
+def risk_label_for_percentage(percentage):
+    return RISK_MAP[2 if percentage >= 71 else (1 if percentage >= 60 else 0)]
+
+
 def train_model(path: str, model_path: str, training_source: str):
     data, _ = read_training_data(path)
     X = data[FEATURE_COLUMNS].apply(pd.to_numeric, errors='raise')
@@ -161,9 +184,11 @@ def predict_model(path: str, model_path: str):
     output = []
     for index, (label, scores) in enumerate(zip(predictions, probabilities)):
         class_index = list(model.classes_).index(label)
+        risk_percentage = calculate_risk_percentage(data.iloc[index])
         output.append({
             'index': index,
-            'risk_label': RISK_MAP[int(label)],
+            'risk_label': risk_label_for_percentage(risk_percentage),
+            'risk_percentage': round(risk_percentage, 2),
             'confidence': round(float(scores[class_index]), 4),
         })
 

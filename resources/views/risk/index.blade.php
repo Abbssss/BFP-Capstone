@@ -2,13 +2,10 @@
     <x-slot name="header"><h2>Predictions</h2></x-slot>
 
     <div class="ops-page">
-        <div class="ops-intro">
-            <div><span class="ops-eyebrow">Decision support</span><h1>Equipment risk predictions</h1><p>Review equipment risk classifications and model-assisted maintenance recommendations.</p></div>
-            <form method="POST" action="{{ route('risk.retrain') }}">
-                @csrf
-                <button type="submit" class="ops-button">⌁ Retrain model</button>
-            </form>
-        </div>
+        <form method="POST" action="{{ route('risk.retrain') }}" style="margin-bottom:14px">
+            @csrf
+            <button type="submit" class="ops-button">⌁ Retrain model</button>
+        </form>
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if(session('error'))<div class="ops-note" role="alert" style="margin-bottom:14px;border-color:#efc5c5;background:#fff1f1;color:#8d2428">{{ session('error') }}</div>@endif
 

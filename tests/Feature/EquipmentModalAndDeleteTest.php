@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Equipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -25,6 +26,98 @@ class EquipmentModalAndDeleteTest extends TestCase
             ->assertSee('data-modal-open="equipment-view-'.$equipment->id.'"', false)
             ->assertSee('data-modal-open="equipment-edit-'.$equipment->id.'"', false)
             ->assertDontSee('equipment-delete-'.$equipment->id);
+    }
+
+    public function test_out_of_service_and_retired_equipment_are_only_shown_in_archive(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $activeEquipment = $this->createEquipment();
+        $outOfServiceEquipment = Equipment::query()->create([
+            'asset_code' => 'EQ-ARCHIVE-OOS',
+            'equipment_name' => 'Out of service equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Out of Service',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+        $retiredEquipment = Equipment::query()->create([
+            'asset_code' => 'EQ-ARCHIVE-RETIRED',
+            'equipment_name' => 'Retired equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Retired',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('equipment.index'))
+            ->assertOk()
+            ->assertSee('All equipment')
+            ->assertSee('Archive (2)')
+            ->assertSee($activeEquipment->equipment_name)
+            ->assertDontSee('equipment-view-'.$outOfServiceEquipment->id)
+            ->assertDontSee('equipment-view-'.$retiredEquipment->id);
+
+        $this->get(route('equipment.index', ['section' => 'archive']))
+            ->assertOk()
+            ->assertSee($outOfServiceEquipment->equipment_name)
+            ->assertSee($retiredEquipment->equipment_name)
+            ->assertDontSee('equipment-view-'.$activeEquipment->id);
+    }
+
+    public function test_maintenance_users_can_edit_operational_equipment_fields_only(): void
+    {
+        $maintenanceUser = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+        $equipment = $this->createEquipment();
+        $csv = UploadedFile::fake()->createWithContent(
+            'equipment.csv',
+            "equipment_name,category\nImported pump,Fire Engine\n"
+        );
+
+        $this->actingAs($maintenanceUser)
+            ->get(route('equipment.index'))
+            ->assertOk()
+            ->assertSee('equipment-view-'.$equipment->id)
+            ->assertDontSee('Import equipment from CSV')
+            ->assertDontSee('Download template')
+            ->assertDontSee('equipment-create-modal')
+            ->assertSee('equipment-edit-'.$equipment->id)
+            ->assertSee('data-modal-open="equipment-edit-'.$equipment->id.'"', false)
+            ->assertSee('Assigned personnel')
+            ->assertSee('Engine operating hours')
+            ->assertDontSee('id="edit-name-'.$equipment->id.'"', false)
+            ->assertDontSee('id="edit-category-'.$equipment->id.'"', false)
+            ->assertDontSee('id="edit-status-'.$equipment->id.'"', false)
+            ->assertDontSee('id="edit-location-'.$equipment->id.'"', false)
+            ->assertDontSee('name="assigned_personnel"', false);
+
+        $this->get(route('equipment.import-template'))->assertForbidden();
+        $this->post(route('equipment.import'), ['file' => $csv])->assertForbidden();
+        $this->get(route('equipment.create'))->assertForbidden();
+        $this->post(route('equipment.store'), [])->assertForbidden();
+        $this->get(route('equipment.edit', $equipment))->assertForbidden();
+        $this->put(route('equipment.update', $equipment), [
+            'assigned_personnel' => $maintenanceUser->id,
+            'engine_operating_hours' => 125,
+            'equipment_name' => 'Unauthorized name change',
+            'category' => 'Unauthorized category change',
+            'status' => 'Retired',
+            'location' => 'Unauthorized location change',
+        ])->assertRedirect(route('equipment.index'))
+            ->assertSessionHas('success', 'Equipment updated successfully.');
+
+        $this->assertDatabaseMissing('equipment', ['equipment_name' => 'Imported pump']);
+        $this->assertDatabaseHas('equipment', [
+            'id' => $equipment->id,
+            'equipment_name' => 'Test station equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'location' => null,
+            'assigned_personnel' => null,
+            'engine_operating_hours' => 125,
+        ]);
     }
 
     public function test_only_super_admin_can_open_delete_controls_and_delete_equipment(): void

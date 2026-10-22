@@ -22,7 +22,7 @@ class OperationsPagesController extends Controller
             ->where('status', 'Under Repair')
             ->orderBy('equipment_name')
             ->get();
-        $repairs = OfficeScope::records(Maintenance::query())->with('equipment')
+        $repairs = OfficeScope::records(Maintenance::query())->with('assignedTo', 'equipment.assignedUser')
             ->where(function ($query) {
                 $query->where('maintenance_type', 'like', '%repair%')
                     ->orWhere(function ($query) {
@@ -36,7 +36,7 @@ class OperationsPagesController extends Controller
         $records = $repairs->map(fn (Maintenance $item) => [
             'record' => $item->request_number,
             'type' => 'Repair · '.$item->maintenance_type,
-            'owner' => $item->technician_name ?: 'Unassigned',
+            'owner' => $item->assignedTo?->name ?? $item->equipment?->assignedUser?->name ?? ($item->technician_name ?: 'Unassigned'),
             'date' => ($item->completion_date ?? $item->start_date)?->format('M d, Y') ?? '—',
             'status' => $item->status,
             'action_url' => route('maintenances.show', $item),
@@ -50,7 +50,7 @@ class OperationsPagesController extends Controller
 
     public function schedule(Request $request): View
     {
-        $scheduledWork = OfficeScope::records(Maintenance::query())->with('equipment')
+        $scheduledWork = OfficeScope::records(Maintenance::query())->with('assignedTo', 'equipment.assignedUser')
             ->whereNotIn('status', ['Cancelled'])
             ->get()
             ->flatMap(function (Maintenance $item) {
@@ -63,7 +63,7 @@ class OperationsPagesController extends Controller
                 $work = [
                     'record' => $item->request_number,
                     'type' => ($isRepair ? 'Repair · ' : 'Maintenance · ').$item->maintenance_type,
-                    'owner' => $item->technician_name ?: 'Unassigned',
+                    'owner' => $item->assignedTo?->name ?? $item->equipment?->assignedUser?->name ?? ($item->technician_name ?: 'Unassigned'),
                     'date' => $date?->format('M d, Y') ?? 'Not scheduled',
                     'status' => $item->status,
                     '_sort_date' => $date?->format('Y-m-d') ?? '9999-12-31',
@@ -74,7 +74,7 @@ class OperationsPagesController extends Controller
                     return [$work, [
                         'record' => $item->request_number,
                         'type' => ($isRepair ? 'Repair follow-up · ' : 'Maintenance follow-up · ').$item->maintenance_type,
-                        'owner' => $item->technician_name ?: 'Unassigned',
+                        'owner' => $item->assignedTo?->name ?? $item->equipment?->assignedUser?->name ?? ($item->technician_name ?: 'Unassigned'),
                         'date' => $item->next_recommended_maintenance_date->format('M d, Y'),
                         'status' => 'Scheduled',
                         '_sort_date' => $item->next_recommended_maintenance_date->format('Y-m-d'),

@@ -104,7 +104,6 @@
                     <h1>User Management</h1>
                     <p>Create accounts and control system access across all three authorized roles.</p>
                 </div>
-                <button type="button" class="button-primary" data-modal-open="user-create-modal"><span aria-hidden="true">＋</span>Create new</button>
             </div>
 
             @if (session('success'))

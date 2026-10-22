@@ -38,7 +38,7 @@
         .trust-row { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 32px; color: #56667b; font-size: 11px; }
         .trust-row span { display: inline-flex; align-items: center; gap: 7px; }
         .trust-icon { color: #b51e24; font-size: 14px; }
-        .hero-visual { position: relative; min-height: 420px; border-radius: 10px; background: #0b1c30 url('https://images.unsplash.com/photo-1685449856292-3016672f0db0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=85&w=1600') center / cover no-repeat; box-shadow: 0 28px 60px rgba(10, 30, 54, .18); }
+        .hero-visual { position: relative; min-height: 420px; border-radius: 10px; background: #0b1c30 url('{{ asset('images/bfp-fire-trucks.jpg') }}') center / cover no-repeat; box-shadow: 0 28px 60px rgba(10, 30, 54, .18); }
         .hero-visual::after { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(130deg, rgba(8,26,49,.08), rgba(8,26,49,.24)); content: ""; }
         .readiness-card, .risk-card { position: absolute; z-index: 1; border: 1px solid rgba(255,255,255,.65); border-radius: 8px; background: rgba(255,255,255,.96); box-shadow: 0 14px 36px rgba(7, 24, 45, .2); }
         .readiness-card { top: 28px; right: -22px; min-width: 185px; padding: 15px 17px; }
@@ -138,7 +138,7 @@
         <section class="hero" id="about">
             <div class="hero-copy">
                 <span class="eyebrow">BFP · Equipment readiness</span>
-                <h1>Predictive maintenance for mission-critical firefighting equipment.</h1>
+                <h1>Predictive Maintenance for Mission-Critical Firefighting Equipment.</h1>
                 <p>FIRE-PMIS helps BFP anticipate equipment risks, coordinate maintenance, and protect operational readiness through reliable data and responsible decision support.</p>
                 <div class="hero-actions">
                     <a class="button-primary" href="{{ route('login') }}">Access FIRE-PMIS <span aria-hidden="true">→</span></a>

@@ -2,10 +2,6 @@
     <x-slot name="header"><h2>Inspections</h2></x-slot>
 
     <div class="ops-page">
-        <div class="ops-intro">
-            <div><span class="ops-eyebrow">Station records</span><h1>Inspections</h1><p>Review and manage inspections for BFP Sta. Ana.</p></div>
-            <button type="button" class="ops-button" data-modal-open="inspection-create-modal">＋ Create new</button>
-        </div>
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="ops-flash" role="alert">Please review the highlighted fields and try again.</div>@endif
         @if($equipmentUnderInspection->isNotEmpty())

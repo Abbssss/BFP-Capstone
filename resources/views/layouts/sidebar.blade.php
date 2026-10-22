@@ -3,7 +3,6 @@
         <span class="app-brand-mark">F</span>
         <span><strong>FIRE-PMIS</strong><small>Bureau of Fire<br>Protection</small></span>
     </a>
-    <div class="app-station-name">BFP STA. ANA · MANILA</div>
     <div class="app-nav-caption">Workspace</div>
     <nav class="app-side-nav" aria-label="Main navigation">
         @include('layouts.navigation-groups')

@@ -21,13 +21,14 @@
                                     <option value="{{ $category }}" @selected(old('category') === $category)>{{ $category }}</option>
                                 @endforeach
                             </select>
+                            <small>Select a person to automatically set the equipment office code.</small>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Office Code</label>
                             @if(auth()->user()->role === 'super_admin')
-                                <input type="text" name="office_code" value="{{ old('office_code') }}" maxlength="50" pattern="[A-Za-z0-9][A-Za-z0-9._-]*" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                <input type="text" name="office_code" value="{{ old('office_code') }}" maxlength="50" pattern="[A-Za-z0-9][A-Za-z0-9._-]*" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-equipment-office-code>
                             @else
-                                <input type="text" value="{{ auth()->user()->office_code }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" readonly>
+                                <input type="text" value="{{ auth()->user()->office_code }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" readonly data-equipment-office-code>
                             @endif
                             @error('office_code')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
@@ -69,10 +70,10 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Assigned Personnel</label>
-                            <select name="assigned_personnel" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                            <select name="assigned_personnel" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" data-equipment-personnel-select>
                                 <option value="">None</option>
                                 @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                    <option value="{{ $user->id }}" data-office-code="{{ $user->office_code }}" @selected(old('assigned_personnel') == $user->id)>{{ $user->name }}</option>
                                 @endforeach
                             </select>
                         </div>

@@ -28,6 +28,7 @@
                     request()->routeIs('reports.*') => 'Reports',
                     request()->routeIs('settings.*') => 'Settings',
                     request()->routeIs('profile.*') => 'Profile',
+                    request()->routeIs('search') => 'Search',
                     default => 'Dashboard',
                 };
             @endphp
@@ -39,8 +40,30 @@
                     @endisset
                 </div>
                 <div class="app-topbar-tools">
-                    <span class="app-tool-icon" aria-hidden="true">⌕</span>
-                    <span class="app-tool-icon app-notification-icon" aria-hidden="true">♧</span>
+                    <form method="GET" action="{{ route('search') }}" class="app-global-search" role="search">
+                        <input type="search" name="q" value="{{ request()->routeIs('search') ? request('q') : '' }}" placeholder="Search records..." aria-label="Search project records" required>
+                        <button type="submit" class="app-tool-icon" aria-label="Search">⌕</button>
+                    </form>
+                    <details class="app-notifications">
+                        <summary class="app-tool-icon app-notification-icon" aria-label="Recent project changes" title="Recent project changes">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                                <path d="M10 21h4" />
+                            </svg>
+                        </summary>
+                        <section class="app-notification-panel" aria-label="Latest project changes">
+                            <h2>Latest changes</h2>
+                            @forelse($recentProjectChanges as $change)
+                                <article class="app-notification-item">
+                                    <strong>{{ $change['title'] }}</strong>
+                                    <span>{{ $change['detail'] }}</span>
+                                    <time datetime="{{ $change['date']?->toISOString() }}">{{ $change['date']?->diffForHumans() }}</time>
+                                </article>
+                            @empty
+                                <p class="app-notification-empty">No recent changes for your office.</p>
+                            @endforelse
+                        </section>
+                    </details>
                     <span class="app-station-date"><small>Station date</small><strong>{{ now()->format('d M Y') }}</strong></span>
                 </div>
             </header>

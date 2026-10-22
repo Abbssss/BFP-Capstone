@@ -16,12 +16,17 @@ class Maintenance extends Model
     protected $fillable = [
         'equipment_id', 'request_number', 'maintenance_type', 'priority', 'status', 'reported_issue',
         'diagnosis', 'action_taken', 'parts_replaced', 'maintenance_cost', 'start_date', 'completion_date',
-        'technician_name', 'downtime_hours', 'maintenance_outcome', 'next_recommended_maintenance_date',
+        'technician_name', 'assigned_to_id', 'downtime_hours', 'maintenance_outcome', 'next_recommended_maintenance_date',
         'supporting_document',
     ];
 
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class);
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
     }
 }

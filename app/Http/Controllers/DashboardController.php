@@ -36,7 +36,8 @@ class DashboardController extends Controller
         $user = $request->user();
         $assignedMaintenance = OfficeScope::records(Maintenance::query())
             ->where(function ($query) use ($user) {
-                $query->where('technician_name', $user->name)
+                $query->where('assigned_to_id', $user->id)
+                    ->orWhere('technician_name', $user->name)
                     ->orWhereHas('equipment', fn ($equipment) => $equipment->where('assigned_personnel', $user->id));
             });
         $activeMaintenance = fn () => (clone $assignedMaintenance)->whereNotIn('status', ['Completed', 'Cancelled']);
@@ -81,7 +82,9 @@ class DashboardController extends Controller
         $assignedEquipment = OfficeScope::equipment(Equipment::query())
             ->where(function ($query) use ($user) {
                 $query->where('assigned_personnel', $user->id)
-                    ->orWhereHas('maintenances', fn ($maintenance) => $maintenance->where('technician_name', $user->name));
+                    ->orWhereHas('maintenances', fn ($maintenance) => $maintenance
+                        ->where('assigned_to_id', $user->id)
+                        ->orWhere('technician_name', $user->name));
             });
         $latestPredictionIds = OfficeScope::records(RiskPrediction::query())
             ->whereIn('equipment_id', (clone $assignedEquipment)->select('id'))
@@ -135,7 +138,7 @@ class DashboardController extends Controller
             ->whereDate('next_inspection_date', '<=', today())
             ->whereNotIn('status', ['Retired'])
             ->count();
-        $maintenanceMonitoring = (clone $maintenance)->with('equipment')
+        $maintenanceMonitoring = (clone $maintenance)->with('assignedTo', 'equipment.assignedUser')
             ->when(
                 $maintenanceTab === 'completed',
                 fn ($query) => $query->where('status', 'Completed')->orderByDesc('completion_date'),
@@ -147,7 +150,7 @@ class DashboardController extends Controller
             ->latest('updated_at')
             ->limit(3)
             ->get();
-        $pendingApprovals = (clone $maintenance)->with('equipment')
+        $pendingApprovals = (clone $maintenance)->with('assignedTo', 'equipment.assignedUser')
             ->where('status', 'Pending')
             ->latest()
             ->limit(3)

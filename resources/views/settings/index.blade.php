@@ -2,10 +2,6 @@
     <x-slot name="header"><h2>Settings</h2></x-slot>
 
     <div class="ops-page">
-        <div class="ops-intro">
-            <div><h1>Settings</h1><p>Manage your account and authorized system configuration.</p></div>
-            <button type="submit" form="account-settings" class="ops-button">Save changes</button>
-        </div>
         @if(session('status') === 'profile-updated')<div class="ops-flash" role="status">Account information saved.</div>@endif
         <div class="ops-grid-sidebar" style="align-items:stretch">
             <nav class="ops-card ops-tabs" aria-label="Settings sections">
@@ -65,6 +61,7 @@
                                 </div>
                             </div>
                         </div>
+                        <button type="submit" class="ops-button" style="margin-top:14px">Save changes</button>
                     </form>
                     @if($errors->any())<div class="ops-flash" style="margin-top:14px" role="alert">Please correct the account details and try again.</div>@endif
                 </div>

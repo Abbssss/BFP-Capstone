@@ -2,10 +2,6 @@
     <x-slot name="header"><h2>Maintenance</h2></x-slot>
 
     <div class="ops-page">
-        <div class="ops-intro">
-            <div><span class="ops-eyebrow">Station records</span><h1>Maintenance</h1><p>Plan, assign, monitor, and verify preventive and corrective work.</p></div>
-            <button type="button" class="ops-button" data-modal-open="maintenance-create-modal">＋ Create new</button>
-        </div>
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="ops-flash" role="alert">Please review the highlighted fields and try again.</div>@endif
         @if($equipmentUnderMaintenance->isNotEmpty())
@@ -65,7 +61,7 @@
                     <tbody>
                     @forelse($maintenances as $maintenance)
                         <tr>
-                            <td>{{ $maintenance->equipment?->equipment_name ?? '—' }}</td><td>{{ $maintenance->maintenance_type }}</td><td>{{ $maintenance->technician_name ?: 'Unassigned' }}</td>
+                            <td>{{ $maintenance->equipment?->equipment_name ?? '—' }}</td><td>{{ $maintenance->maintenance_type }}</td><td>{{ $maintenance->assignedTo?->name ?? $maintenance->equipment?->assignedUser?->name ?? ($maintenance->technician_name ?: 'Unassigned') }}</td>
                             <td>{{ $maintenance->next_recommended_maintenance_date?->format('M d, Y') ?? $maintenance->start_date?->format('M d, Y') ?? '—' }}</td>
                             <td><span class="ops-pill {{ in_array(strtolower($maintenance->priority), ['high', 'critical'], true) ? 'danger' : (strtolower($maintenance->priority) === 'medium' ? 'warning' : 'neutral') }}">{{ $maintenance->priority }}</span></td>
                             <td><span class="ops-pill {{ strtolower($maintenance->status) === 'completed' ? '' : (in_array(strtolower($maintenance->status), ['in progress', 'scheduled'], true) ? 'warning' : 'neutral') }}">{{ $maintenance->status }}</span></td>
@@ -94,13 +90,27 @@
                     <div class="app-modal-grid">
                         <div class="app-modal-field">
                             <label for="maintenance-equipment">Equipment</label>
-                            <select id="maintenance-equipment" name="equipment_id" required>
+                            <select id="maintenance-equipment" name="equipment_id" required data-assignee-equipment-select>
                                 <option value="">Select equipment</option>
                                 @foreach($equipmentOptions as $item)
-                                    <option value="{{ $item->id }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
+                                    <option value="{{ $item->id }}"
+                                        data-assigned-personnel-id="{{ $item->assigned_personnel }}"
+                                        data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}"
+                                        @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
                                 @endforeach
                             </select>
                             @error('equipment_id')<span class="app-modal-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="app-modal-field" data-equipment-assignee-field hidden>
+                            <label for="maintenance-assigned-to">Who will do the job?</label>
+                            <select id="maintenance-assigned-to" name="assigned_to_id" data-maintenance-assignee-select>
+                                <option value="">Select personnel</option>
+                                @foreach($personnelOptions as $person)
+                                    <option value="{{ $person->id }}" @selected(old('assigned_to_id') == $person->id)>{{ $person->name }}</option>
+                                @endforeach
+                            </select>
+                            <small data-equipment-assigned-personnel></small>
+                            @error('assigned_to_id')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">
                             <label for="maintenance-request">Request number</label>
@@ -129,10 +139,6 @@
                                 @endforeach
                             </select>
                             @error('status')<span class="app-modal-error">{{ $message }}</span>@enderror
-                        </div>
-                        <div class="app-modal-field">
-                            <label for="maintenance-technician">Technician</label>
-                            <input id="maintenance-technician" name="technician_name" value="{{ old('technician_name') }}">
                         </div>
                         <div class="app-modal-field">
                             <label for="maintenance-start">Start date</label>

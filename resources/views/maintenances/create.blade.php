@@ -11,11 +11,23 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Equipment</label>
-                            <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-assignee-equipment-select>
+                                <option value="">Select equipment</option>
                                 @foreach($equipment as $item)
-                                    <option value="{{ $item->id }}">{{ $item->equipment_name }}</option>
+                                    <option value="{{ $item->id }}" data-assigned-personnel-id="{{ $item->assigned_personnel }}" data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div data-equipment-assignee-field hidden>
+                            <label class="block text-sm font-medium text-gray-700" for="maintenance-assigned-to">Who will do the job?</label>
+                            <select id="maintenance-assigned-to" name="assigned_to_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" data-maintenance-assignee-select>
+                                <option value="">Select personnel</option>
+                                @foreach($personnelOptions as $person)
+                                    <option value="{{ $person->id }}" @selected(old('assigned_to_id') == $person->id)>{{ $person->name }}</option>
+                                @endforeach
+                            </select>
+                            <small data-equipment-assigned-personnel></small>
+                            @error('assigned_to_id')<span class="text-red-700 text-sm">{{ $message }}</span>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Request Number</label>
@@ -44,10 +56,6 @@
                                 <option>Completed</option>
                                 <option>Cancelled</option>
                             </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Technician</label>
-                            <input type="text" name="technician_name" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Start Date</label>

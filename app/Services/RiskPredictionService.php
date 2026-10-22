@@ -33,6 +33,7 @@ class RiskPredictionService
         }
 
         $payload = $this->featuresFor($equipment);
+        $payload['risk_percentage'] = $this->riskPercentage($payload);
         $inputPath = storage_path('app/ml/prediction-'.bin2hex(random_bytes(8)).'.json');
         $this->writeJson($inputPath, ['records' => [$payload]]);
 
@@ -46,6 +47,7 @@ class RiskPredictionService
             return [
                 'label' => $prediction['risk_label'],
                 'confidence' => (float) $prediction['confidence'],
+                'risk_percentage' => (float) ($prediction['risk_percentage'] ?? $payload['risk_percentage']),
             ];
         } finally {
             if (is_file($inputPath)) {
@@ -281,17 +283,25 @@ class RiskPredictionService
 
     protected function riskClass(array $features): int
     {
-        $score = 0;
-        $score += (float) ($features['service_age'] ?? 0) * 2;
-        $score += (float) ($features['engine_operating_hours'] ?? 0) / 100;
-        $score += (float) ($features['runtime_cycles'] ?? 0) / 20;
-        $score += (float) ($features['mechanical_failures'] ?? 0) * 3;
-        $score += (float) ($features['days_since_last_inspection'] ?? 0) / 30;
-        $score += (float) ($features['days_since_last_maintenance'] ?? 0) / 45;
-        $score += (float) ($features['defects_count'] ?? 0) * 2;
-        $score += (float) ($features['inspection_outcome'] ?? 1) * 2;
-        $score += (float) ($features['maintenance_frequency'] ?? 365) / 180;
+        $riskPercentage = $this->riskPercentage($features);
 
-        return $score >= 20 ? 2 : ($score >= 10 ? 1 : 0);
+        return $riskPercentage >= 71 ? 2 : ($riskPercentage >= 60 ? 1 : 0);
+    }
+
+    protected function riskPercentage(array $features): float
+    {
+        $riskFactors = [
+            min(1, max(0, (float) ($features['service_age'] ?? 0) / 20)),
+            min(1, max(0, (float) ($features['engine_operating_hours'] ?? 0) / 10000)),
+            min(1, max(0, (float) ($features['runtime_cycles'] ?? 0) / 1000)),
+            min(1, max(0, (float) ($features['mechanical_failures'] ?? 0) / 10)),
+            min(1, max(0, (float) ($features['days_since_last_inspection'] ?? 0) / 365)),
+            min(1, max(0, (float) ($features['days_since_last_maintenance'] ?? 0) / 365)),
+            min(1, max(0, (float) ($features['defects_count'] ?? 0) / 10)),
+            min(1, max(0, ((float) ($features['inspection_outcome'] ?? 1) - 1) / 3)),
+            min(1, max(0, (float) ($features['maintenance_frequency'] ?? 365) / 365)),
+        ];
+
+        return array_sum($riskFactors) / count($riskFactors) * 100;
     }
 }

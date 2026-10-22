@@ -18,7 +18,7 @@
                     <div><strong>Equipment:</strong> {{ $maintenance->equipment?->equipment_name }}</div>
                     <div><strong>Priority:</strong> {{ $maintenance->priority }}</div>
                     <div><strong>Status:</strong> {{ $maintenance->status }}</div>
-                    <div><strong>Technician:</strong> {{ $maintenance->technician_name ?? 'N/A' }}</div>
+                    <div><strong>Assigned to:</strong> {{ $maintenance->assignedTo?->name ?? $maintenance->equipment?->assignedUser?->name ?? ($maintenance->technician_name ?: 'N/A') }}</div>
                     <div><strong>Start Date:</strong> {{ $maintenance->start_date ?? 'N/A' }}</div>
                     <div><strong>Completion Date:</strong> {{ $maintenance->completion_date ?? 'N/A' }}</div>
                     <div class="md:col-span-2"><strong>Reported Issue:</strong> {{ $maintenance->reported_issue ?? 'N/A' }}</div>

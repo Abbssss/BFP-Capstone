@@ -87,14 +87,14 @@ class ReportDataService
                     'Location' => $equipment->location ?: '—',
                     'Registered' => $equipment->created_at?->format('Y-m-d') ?? '—',
                 ], $equipment->status, ['category' => $equipment->category, 'status' => $equipment->status], $equipment->created_at)),
-            'maintenance-summary' => OfficeScope::records(Maintenance::query())->with('equipment')->when($start, fn ($query) => $range($query, 'start_date'))
+            'maintenance-summary' => OfficeScope::records(Maintenance::query())->with('assignedTo', 'equipment')->when($start, fn ($query) => $range($query, 'start_date'))
                 ->orderByDesc('start_date')->get()->map(fn (Maintenance $maintenance) => $this->record([
                     'Request' => $maintenance->request_number,
                     'Equipment' => $maintenance->equipment?->equipment_name ?? '—',
                     'Office Code' => $maintenance->equipment?->office_code ?: '—',
                     'Type' => $maintenance->maintenance_type,
                     'Status' => $maintenance->status,
-                    'Technician' => $maintenance->technician_name ?: 'Unassigned',
+                    'Technician' => $maintenance->assignedTo?->name ?? ($maintenance->technician_name ?: 'Unassigned'),
                     'Start date' => $maintenance->start_date?->format('Y-m-d') ?? '—',
                 ], $maintenance->status, ['category' => $maintenance->maintenance_type, 'status' => $maintenance->status], $maintenance->start_date)),
             'inspection-summary' => OfficeScope::records(Inspection::query())->with('equipment')->when($start, fn ($query) => $range($query, 'inspection_date'))
