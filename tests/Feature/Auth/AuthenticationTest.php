@@ -52,6 +52,43 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_users_with_a_pending_role_cannot_authenticate(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'pending',
+            'status' => 'pending',
+        ]);
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])
+            ->assertSessionHasErrors(['email' => 'Your account is awaiting role assignment by a Super Admin.']);
+
+        $this->assertGuest();
+    }
+
+    public function test_users_can_authenticate_after_a_role_is_assigned(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'pending',
+            'status' => 'pending',
+        ]);
+
+        $user->update([
+            'role' => 'maintenance',
+            'status' => 'active',
+        ]);
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create(['role' => 'super_admin']);

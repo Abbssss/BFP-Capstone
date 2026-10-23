@@ -69,9 +69,22 @@
             </header>
             <main class="app-main-content">
                 @if(auth()->user()->role !== 'super_admin' && blank(auth()->user()->office_code))
-                    <div class="app-office-warning" role="status">
-                        No Office Code is assigned to your account. Ask a Super Admin to assign your office before using personnel, equipment, or operational records.
-                    </div>
+                    <dialog class="app-modal" data-office-warning="{{ auth()->id() }}" aria-labelledby="office-warning-title" aria-describedby="office-warning-message">
+                        <div class="app-modal-panel">
+                            <header class="app-modal-header">
+                                <div>
+                                    <h2 id="office-warning-title">Office assignment pending</h2>
+                                    <p id="office-warning-message">Your account does not have an office code yet.</p>
+                                </div>
+                            </header>
+                            <div class="app-modal-body">
+                                Please wait for a Super Admin to assign your office, or contact your administrator to confirm your office assignment. Until then, office-specific records may not be available.
+                            </div>
+                            <div class="app-modal-footer">
+                                <button type="button" class="app-modal-button primary" data-modal-close>Okay, I'll wait</button>
+                            </div>
+                        </div>
+                    </dialog>
                 @endif
                 {{ $slot }}
             </main>

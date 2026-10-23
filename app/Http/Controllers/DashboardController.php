@@ -251,7 +251,16 @@ class DashboardController extends Controller
         $equipmentCount = Equipment::count();
         $maintenanceCount = Maintenance::count();
         $inspectionCount = Inspection::count();
-        $completedMaintenanceCount = Maintenance::whereNotNull('completion_date')->count();
+        $repairCount = Maintenance::query()
+            ->where(function ($query) {
+                $query->where('maintenance_type', 'like', '%repair%')
+                    ->orWhere(function ($query) {
+                        $query->where('maintenance_type', 'not like', '%preventive%')
+                            ->whereNotNull('reported_issue')
+                            ->where('reported_issue', '<>', '');
+                    });
+            })
+            ->count();
         $activeUserCount = User::where('status', 'active')->count();
         $predictionCount = RiskPrediction::count();
         $latestRiskPredictions = RiskPrediction::query()
@@ -268,7 +277,13 @@ class DashboardController extends Controller
         ];
         $highRiskCount = $riskLevels['High Risk'];
         $overdueMaintenanceCount = Maintenance::query()
-            ->whereDate('next_recommended_maintenance_date', '<', today())
+            ->where(function ($query) {
+                $query->whereDate('next_recommended_maintenance_date', '<', today())
+                    ->orWhere(function ($query) {
+                        $query->whereNull('next_recommended_maintenance_date')
+                            ->whereDate('start_date', '<', today());
+                    });
+            })
             ->whereNotIn('status', ['Completed', 'Cancelled'])
             ->count();
         $overdueInspectionCount = Equipment::query()
@@ -304,7 +319,7 @@ class DashboardController extends Controller
             'equipmentCount',
             'maintenanceCount',
             'inspectionCount',
-            'completedMaintenanceCount',
+            'repairCount',
             'activeUserCount',
             'highRiskCount',
             'riskLevels',

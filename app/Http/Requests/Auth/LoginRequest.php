@@ -50,6 +50,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        if (Auth::user()?->role === 'pending') {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Your account is awaiting role assignment by a Super Admin.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

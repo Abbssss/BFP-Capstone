@@ -53,6 +53,15 @@ document.querySelectorAll('dialog.app-modal[data-open-on-load="true"]').forEach(
     }
 });
 
+const officeWarningDialog = document.querySelector('dialog[data-office-warning]');
+if (officeWarningDialog instanceof HTMLDialogElement) {
+    const warningKey = `office-code-warning:${officeWarningDialog.dataset.officeWarning}`;
+    if (sessionStorage.getItem(warningKey) !== 'shown') {
+        sessionStorage.setItem(warningKey, 'shown');
+        officeWarningDialog.showModal();
+    }
+}
+
 const syncMaintenanceAssignee = (equipmentSelect, useEquipmentAssignee = false) => {
     const form = equipmentSelect.closest('form');
     const field = form?.querySelector('[data-equipment-assignee-field]');

@@ -21,6 +21,17 @@ class ProfileTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_profile_page_renders_when_the_auth_user_has_no_loaded_role(): void
+    {
+        $user = User::factory()->create();
+        $this->assertNull($user->role);
+
+        $this->actingAs($user)
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('Office assignment pending');
+    }
+
     public function test_profile_information_can_be_updated(): void
     {
         $user = User::factory()->create();

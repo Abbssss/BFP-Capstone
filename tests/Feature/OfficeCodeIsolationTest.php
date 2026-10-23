@@ -54,6 +54,43 @@ class OfficeCodeIsolationTest extends TestCase
         ]);
     }
 
+    public function test_users_without_an_office_code_see_a_session_scoped_assignment_notice(): void
+    {
+        $userWithoutOffice = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => null,
+        ]);
+        $userWithOffice = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'ANA-01',
+        ]);
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'status' => 'active',
+            'office_code' => null,
+        ]);
+
+        $this->actingAs($userWithoutOffice)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('dialog')
+            ->assertSee('Office assignment pending')
+            ->assertSee('Please wait for a Super Admin to assign your office')
+            ->assertSee('data-office-warning="'.$userWithoutOffice->id.'"', false);
+
+        $this->actingAs($userWithOffice)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertDontSee('Office assignment pending');
+
+        $this->actingAs($superAdmin)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertDontSee('Office assignment pending');
+    }
+
     public function test_personnel_equipment_and_work_records_are_limited_to_the_signed_in_office(): void
     {
         $admin = User::factory()->create([
@@ -171,7 +208,7 @@ class OfficeCodeIsolationTest extends TestCase
 
         $this->actingAs($admin)->from('/equipment')->post('/equipment', [
             'equipment_name' => 'Invalid cross-office equipment',
-            'category' => 'Pump',
+            'category' => 'Portable Water Pump',
             'office_code' => 'OTHER-02',
             'status' => 'Operational',
             'assigned_personnel' => $otherPersonnel->id,
@@ -180,7 +217,7 @@ class OfficeCodeIsolationTest extends TestCase
 
         $this->post('/equipment', [
             'equipment_name' => 'Office-owned equipment',
-            'category' => 'Pump',
+            'category' => 'Portable Water Pump',
             'office_code' => 'OTHER-02',
             'status' => 'Operational',
         ])->assertRedirect('/equipment');

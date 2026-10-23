@@ -16,7 +16,7 @@ class RegistrationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_new_users_can_register(): void
+    public function test_new_users_register_with_pending_access_until_a_super_admin_assigns_a_role(): void
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
@@ -25,7 +25,14 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertGuest();
+        $response->assertRedirect(route('login', absolute: false));
+        $response->assertSessionHas('status', 'Your account has been created. A Super Admin must assign your role before you can sign in.');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'test@example.com',
+            'role' => 'pending',
+            'status' => 'pending',
+        ]);
     }
 }

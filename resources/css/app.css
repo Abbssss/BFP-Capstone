@@ -109,7 +109,6 @@ html {
 .app-station-date small { display: block; color: #8996a7; font-size: 7px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .app-station-date strong { display: block; margin-top: 2px; color: #18304f; font-size: 9px; }
 .app-main-content { min-height: calc(100vh - 58px); }
-.app-office-warning { margin: 18px clamp(16px, 4.2vw, 64px) 0; border: 1px solid #efd48a; border-radius: 6px; padding: 12px 15px; background: #fff8e5; color: #72520d; font-size: 13px; line-height: 1.5; }
 .ops-page { max-width: 1600px; margin: 0 auto; padding: 28px clamp(22px, 4.2vw, 64px) 44px; }
 .ops-eyebrow { display: inline-block; border-radius: 3px; padding: 4px 7px; background: #fff0ef; color: #b62025; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .ops-button { display: inline-flex; min-height: 36px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 5px; padding: 0 14px; background: #bd1f24; box-shadow: 0 4px 9px rgba(128,22,27,.15); color: #fff; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap; }

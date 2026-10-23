@@ -18,6 +18,10 @@ class RecentProjectChanges
             return collect();
         }
 
+        if (blank($user->role)) {
+            return collect();
+        }
+
         $permissions = app(RolePermissionService::class);
         $changes = collect();
         $assignedEquipmentOnly = $user->role === 'maintenance';

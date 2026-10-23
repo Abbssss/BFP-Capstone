@@ -106,6 +106,44 @@ class AdminWorkspaceTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_dashboard_counts_repairs_and_overdue_maintenance_accurately(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
+        $equipment = Equipment::create([
+            'asset_code' => 'EQ-DASH-METRICS',
+            'equipment_name' => 'Dashboard metrics equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+        ]);
+        Maintenance::create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'REQ-DASH-OLD-MAINT',
+            'maintenance_type' => 'Preventive service',
+            'status' => 'Pending',
+            'start_date' => today()->subDay(),
+        ]);
+        Maintenance::create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'REQ-DASH-REPAIR',
+            'maintenance_type' => 'Pump repair',
+            'status' => 'Completed',
+            'completion_date' => today(),
+        ]);
+        Maintenance::create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'REQ-DASH-COMPLETE-MAINT',
+            'maintenance_type' => 'Preventive service',
+            'status' => 'Completed',
+            'completion_date' => today(),
+        ]);
+
+        $response = $this->actingAs($superAdmin)->get('/dashboard');
+
+        $response->assertOk()
+            ->assertViewHas('repairCount', 1)
+            ->assertViewHas('overdueMaintenanceCount', 1);
+    }
+
     public function test_super_admin_pages_use_the_shared_application_shell(): void
     {
         $superAdmin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
@@ -122,6 +160,34 @@ class AdminWorkspaceTest extends TestCase
                 ->assertSee('class="app-topbar"', false)
                 ->assertSee($content, false);
         }
+    }
+
+    public function test_super_admin_can_assign_a_role_to_a_pending_registered_user(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
+        $pendingUser = User::factory()->create([
+            'role' => 'pending',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->get('/users')
+            ->assertOk()
+            ->assertSee('Pending approval')
+            ->assertSee('Assign a role');
+
+        $this->post(route('users.role', $pendingUser), [
+            'role' => 'admin',
+            'office_code' => 'STA-ANA',
+            'status' => 'active',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $pendingUser->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'STA-ANA',
+        ]);
     }
 
     public function test_maintenance_dashboard_uses_the_shared_application_shell(): void

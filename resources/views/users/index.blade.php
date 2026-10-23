@@ -121,12 +121,14 @@
                             <option value="">All status</option>
                             <option value="active" @selected(request('status') === 'active')>Active</option>
                             <option value="inactive" @selected(request('status') === 'inactive')>Inactive</option>
+                            <option value="pending" @selected(request('status') === 'pending')>Pending approval</option>
                         </select>
                         <select class="filter-select" name="role" aria-label="Filter by role">
                             <option value="">All categories</option>
                             <option value="super_admin" @selected(request('role') === 'super_admin')>Super Admin</option>
                             <option value="admin" @selected(request('role') === 'admin')>Admin</option>
                             <option value="maintenance" @selected(request('role') === 'maintenance')>Maintenance</option>
+                            <option value="pending" @selected(request('role') === 'pending')>Pending approval</option>
                         </select>
                         <button class="button-primary" type="submit">Filter</button>
                         @if(request()->hasAny(['search', 'status', 'role']))
@@ -154,7 +156,7 @@
                                 <tr>
                                     <td class="user-name">{{ $user->name }}</td>
                                     <td class="username">{{ \Illuminate\Support\Str::before($user->email, '@') }}</td>
-                                    <td class="role-label">{{ ucfirst(str_replace('_', ' ', $user->role ?? 'maintenance')) }}</td>
+                                    <td class="role-label">{{ $user->role === 'pending' ? 'Pending approval' : ucfirst(str_replace('_', ' ', $user->role ?? 'maintenance')) }}</td>
                                     <td>{{ $user->office_code ?: '—' }}</td>
                                     <td><span class="status-pill {{ $user->status === 'active' ? '' : 'inactive' }}">{{ $user->status ?: 'unknown' }}</span></td>
                                     <td class="last-login">Not recorded</td>
@@ -220,6 +222,9 @@
                             <div class="app-modal-field">
                                 <label for="manage-role-{{ $user->id }}">Role</label>
                                 <select id="manage-role-{{ $user->id }}" name="role" required data-office-role>
+                                    @if($user->role === 'pending')
+                                        <option value="" disabled @selected(old('role') === null)>Assign a role</option>
+                                    @endif
                                     @foreach(['super_admin' => 'Super Admin', 'admin' => 'Admin', 'maintenance' => 'Maintenance'] as $value => $label)
                                         <option value="{{ $value }}" @selected(old('role', $user->role) === $value)>{{ $label }}</option>
                                     @endforeach
@@ -235,7 +240,7 @@
                             <div class="app-modal-field">
                                 <label for="manage-status-{{ $user->id }}">Account status</label>
                                 <select id="manage-status-{{ $user->id }}" name="status" required>
-                                    <option value="active" @selected(old('status', $user->status) === 'active')>Active</option>
+                                    <option value="active" @selected(old('status', $user->status === 'pending' ? 'active' : $user->status) === 'active')>Active</option>
                                     <option value="inactive" @selected(old('status', $user->status) === 'inactive')>Inactive</option>
                                 </select>
                                 @error('status')<span class="app-modal-error">{{ $message }}</span>@enderror

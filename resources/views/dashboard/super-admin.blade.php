@@ -215,7 +215,7 @@
                                 <div class="record-box"><span>Equipment</span><strong>{{ $equipmentCount }}</strong></div>
                                 <div class="record-box"><span>Maintenance</span><strong>{{ number_format($maintenanceCount) }}</strong></div>
                                 <div class="record-box"><span>Inspections</span><strong>{{ number_format($inspectionCount) }}</strong></div>
-                                <div class="record-box"><span>Repairs</span><strong>{{ number_format($completedMaintenanceCount) }}</strong></div>
+                                <div class="record-box"><span>Repairs</span><strong>{{ number_format($repairCount) }}</strong></div>
                                 <div class="record-box"><span>Predictions</span><strong>{{ number_format($predictionCount) }}</strong></div>
                             </div>
                         </div>
@@ -280,9 +280,9 @@
                                     @forelse($users as $user)
                                         <tr>
                                             <td>{{ $user->name }}</td>
-                                            <td>{{ ucfirst(str_replace('_', ' ', $user->role)) }}</td>
+                                            <td>{{ $user->role === 'pending' ? 'Pending approval' : ucfirst(str_replace('_', ' ', $user->role ?? '')) }}</td>
                                             <td><span class="status-pill {{ $user->status === 'active' ? '' : 'inactive' }}">{{ $user->status ?: 'unknown' }}</span></td>
-                                            <td>{{ $user->created_at?->format('M d, Y') ?? '—' }}</td>
+                                            <td>{{ $user->created_at?->format('M, d, Y') ?? '—' }}</td>
                                         </tr>
                                     @empty
                                         <tr><td colspan="4" class="empty-state">No user accounts found.</td></tr>

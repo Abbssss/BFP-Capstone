@@ -1,7 +1,7 @@
 <x-guest-layout>
     <p class="auth-kicker">Station access</p>
     <h2>Create your account</h2>
-    <p class="auth-description">Register with your official personnel details.</p>
+    <p class="auth-description">Register with your official personnel details. A Super Admin must assign your role before you can sign in.</p>
 
     <form method="POST" action="{{ route('register') }}" class="auth-form">
         @csrf

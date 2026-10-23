@@ -23,6 +23,7 @@ The application defines the following roles in `app/Support/RolePermissionRegist
 Important behavior:
 
 - `super_admin` can manage users, roles, permissions, and audit screens.
+- Self-registered accounts remain pending and cannot sign in until a super admin assigns an authorized role from User Management.
 - Admin and maintenance access is governed by module permissions in the database.
 - Locked modules such as `user_management`, `roles_permissions`, and `audit_logs` are restricted from admin-level changes.
 - Office-scoped queries limit records to the logged-in user's office when they are not a super admin.
