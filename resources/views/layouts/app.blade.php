@@ -69,7 +69,7 @@
             </header>
             <main class="app-main-content">
                 @if(auth()->user()->role !== 'super_admin' && blank(auth()->user()->office_code))
-                    <dialog class="app-modal" data-office-warning="{{ auth()->id() }}" aria-labelledby="office-warning-title" aria-describedby="office-warning-message">
+                    <dialog class="app-modal" data-office-warning="{{ auth()->id() }}" data-open-on-load="true" aria-labelledby="office-warning-title" aria-describedby="office-warning-message">
                         <div class="app-modal-panel">
                             <header class="app-modal-header">
                                 <div>
@@ -83,7 +83,7 @@
                             <div class="app-modal-footer">
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
-                                    <button type="submit" class="app-modal-button primary">Wait and sign out</button>
+                                    <button type="submit" class="app-modal-button primary">Okay, I&rsquo;ll wait</button>
                                 </form>
                             </div>
                         </div>

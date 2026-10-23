@@ -78,9 +78,9 @@ class OfficeCodeIsolationTest extends TestCase
             ->assertSee('dialog')
             ->assertSee('Office assignment pending')
             ->assertSee('Please wait for a Super Admin to assign your office')
-            ->assertSee('data-office-warning="'.$userWithoutOffice->id.'"', false)
+            ->assertSee('data-office-warning="'.$userWithoutOffice->id.'" data-open-on-load="true"', false)
             ->assertSee('method="POST" action="'.route('logout').'"', false)
-            ->assertSee('Wait and sign out');
+            ->assertSee('Okay, I&rsquo;ll wait', false);
 
         $this->actingAs($userWithOffice)
             ->get('/dashboard')
