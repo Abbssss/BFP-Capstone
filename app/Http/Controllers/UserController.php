@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -142,5 +143,35 @@ class UserController extends Controller
         });
 
         return back()->with('success', 'User role and office assignment updated.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user()->is($user)) {
+            throw ValidationException::withMessages([
+                'password' => 'You cannot delete your own Super Admin account.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            '_form' => ['required', 'in:delete-user'],
+            'password' => ['required', 'string'],
+        ]);
+
+        if (! Hash::check($validated['password'], $request->user()->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'The password does not match the signed-in Super Admin account.',
+            ]);
+        }
+
+        DB::transaction(function () use ($user): void {
+            Equipment::query()
+                ->where('assigned_personnel', $user->id)
+                ->update(['assigned_personnel' => null]);
+
+            $user->delete();
+        });
+
+        return redirect()->route('users.index')->with('success', 'User account deleted.');
     }
 }

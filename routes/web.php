@@ -64,6 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create')->middleware('role:super_admin');
     Route::post('/users', [UserController::class, 'store'])->name('users.store')->middleware('role:super_admin');
     Route::post('/users/{user}/role', [UserController::class, 'updateRole'])->name('users.role')->middleware('role:super_admin');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy')->middleware('role:super_admin');
     Route::get('/roles-permissions', [UserController::class, 'permissions'])->name('roles.permissions')->middleware('role:super_admin');
 
     Route::post('/roles-permissions', [UserController::class, 'updatePermissions'])->name('roles.permissions.update')->middleware('role:super_admin');

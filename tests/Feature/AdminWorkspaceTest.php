@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Equipment;
 use App\Models\Maintenance;
 use App\Models\RiskPrediction;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AdminWorkspaceTest extends TestCase
@@ -188,6 +189,53 @@ class AdminWorkspaceTest extends TestCase
             'status' => 'active',
             'office_code' => 'STA-ANA',
         ]);
+    }
+
+    public function test_super_admin_can_delete_another_account_after_password_confirmation(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'status' => 'active',
+            'password' => Hash::make('super-secret'),
+        ]);
+        $user = User::factory()->create(['role' => 'maintenance', 'status' => 'active']);
+
+        $this->actingAs($superAdmin)
+            ->get('/users')
+            ->assertOk()
+            ->assertSee('delete-user-'.$user->id)
+            ->assertSee('Your Super Admin password');
+
+        $this->delete(route('users.destroy', $user), [
+            '_form' => 'delete-user',
+            'user_id' => $user->id,
+            'password' => 'wrong-password',
+        ])->assertSessionHasErrors('password');
+        $this->assertDatabaseHas('users', ['id' => $user->id]);
+
+        $this->delete(route('users.destroy', $user), [
+            '_form' => 'delete-user',
+            'user_id' => $user->id,
+            'password' => 'super-secret',
+        ])
+            ->assertRedirect(route('users.index'))
+            ->assertSessionHas('success', 'User account deleted.');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
+
+    public function test_super_admin_cannot_delete_their_own_account(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
+
+        $this->actingAs($superAdmin)
+            ->delete(route('users.destroy', $superAdmin), [
+                '_form' => 'delete-user',
+                'password' => 'password',
+            ])
+            ->assertSessionHasErrors('password');
+
+        $this->assertDatabaseHas('users', ['id' => $superAdmin->id]);
     }
 
     public function test_maintenance_dashboard_uses_the_shared_application_shell(): void

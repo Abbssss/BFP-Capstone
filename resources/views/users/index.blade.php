@@ -162,6 +162,9 @@
                                     <td class="last-login">Not recorded</td>
                                     <td>
                                         <button type="button" class="manage-button" data-modal-open="manage-user-{{ $user->id }}">Manage</button>
+                                        @if(auth()->id() !== $user->id)
+                                            <button type="button" class="equipment-action danger" data-modal-open="delete-user-{{ $user->id }}">Delete</button>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -254,6 +257,37 @@
                 </div>
             </div>
         </dialog>
+        @if(auth()->id() !== $user->id)
+            <dialog id="delete-user-{{ $user->id }}" class="app-modal equipment-delete-modal" aria-labelledby="delete-user-title-{{ $user->id }}" data-open-on-load="{{ $errors->any() && old('_form') === 'delete-user' && (string) old('user_id') === (string) $user->id ? 'true' : 'false' }}">
+                <div class="app-modal-panel">
+                    <header class="app-modal-header">
+                        <div>
+                            <h2 id="delete-user-title-{{ $user->id }}">Delete user account</h2>
+                            <p>This permanently removes {{ $user->name }}'s account.</p>
+                        </div>
+                        <button type="button" class="app-modal-close" aria-label="Close dialog" data-modal-close>&times;</button>
+                    </header>
+                    <div class="app-modal-body">
+                        <div class="equipment-delete-warning">Enter your Super Admin password to confirm. Equipment assigned to this account will be left unassigned.</div>
+                        <form method="POST" action="{{ route('users.destroy', $user) }}">
+                            @csrf
+                            @method('DELETE')
+                            <input type="hidden" name="_form" value="delete-user">
+                            <input type="hidden" name="user_id" value="{{ $user->id }}">
+                            <div class="app-modal-field">
+                                <label for="delete-user-password-{{ $user->id }}">Your Super Admin password</label>
+                                <input id="delete-user-password-{{ $user->id }}" type="password" name="password" autocomplete="current-password" required>
+                                @error('password') @if(old('_form') === 'delete-user' && (string) old('user_id') === (string) $user->id)<span class="app-modal-error">{{ $message }}</span>@endif @enderror
+                            </div>
+                            <div class="app-modal-footer">
+                                <button type="button" class="app-modal-button" data-modal-close>Cancel</button>
+                                <button type="submit" class="app-modal-button equipment-delete-button">Delete account</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </dialog>
+        @endif
     @endforeach
     <dialog id="user-create-modal" class="app-modal" data-open-on-load="{{ $errors->any() && old('_form') === 'create-user' ? 'true' : 'false' }}">
         <div class="app-modal-panel">
