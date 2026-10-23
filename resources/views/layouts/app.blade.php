@@ -81,7 +81,10 @@
                                 Please wait for a Super Admin to assign your office, or contact your administrator to confirm your office assignment. Until then, office-specific records may not be available.
                             </div>
                             <div class="app-modal-footer">
-                                <button type="button" class="app-modal-button primary" data-modal-close>Okay, I'll wait</button>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="app-modal-button primary">Wait and sign out</button>
+                                </form>
                             </div>
                         </div>
                     </dialog>
