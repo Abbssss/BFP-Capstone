@@ -76,7 +76,7 @@
                 <div class="auth-hero-copy">
                     <div class="auth-eyebrow">Secure station access</div>
                     <h1>Equipment readiness begins with reliable information.</h1>
-                    <p>Predictive maintenance and asset oversight for BFP Sta. Ana, Manila.</p>
+                    <p>Predictive maintenance and asset oversight for BFP</p>
                 </div>
                 <div class="auth-legal">Authorized personnel only<small>All activity is monitored and logged.</small></div>
             </aside>
