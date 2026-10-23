@@ -193,7 +193,7 @@
                     <div>
                         <span class="sample-label">Live data</span>
                         <h1>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ Auth::user()->name }}.</h1>
-                        <p>System-wide status and governance overview for BFP Sta. Ana.</p>
+                        <p>System-wide status and governance overview for BFP</p>
                     </div>
                 </section>
 
