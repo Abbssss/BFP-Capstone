@@ -8,10 +8,6 @@
                 <h1>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ auth()->user()->name }}.</h1>
                 <p>Here is your station maintenance overview for today.</p>
             </div>
-            <a class="admin-station-chip" href="{{ route('equipment.index') }}">
-                <span aria-hidden="true">⛨</span>
-                <span><small>Assigned station</small><strong>BFP - Sta. Ana, Manila</strong></span>
-            </a>
         </div>
 
         <section class="admin-summary-grid" aria-label="Station summary">
