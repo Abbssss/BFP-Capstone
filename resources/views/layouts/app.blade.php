@@ -64,7 +64,7 @@
                             @endforelse
                         </section>
                     </details>
-                    <span class="app-station-date"><small>Station date</small><strong>{{ now()->format('d M Y') }}</strong></span>
+                    <span class="app-station-date"><strong>{{ now()->format('d M Y') }}</strong></span>
                 </div>
             </header>
             <main class="app-main-content">

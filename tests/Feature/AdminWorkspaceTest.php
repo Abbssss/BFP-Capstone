@@ -23,6 +23,8 @@ class AdminWorkspaceTest extends TestCase
             ->assertOk()
             ->assertSee('class="app-sidebar"', false)
             ->assertSee('class="app-topbar"', false)
+            ->assertSee(now()->format('d M Y'))
+            ->assertDontSee('Station date')
             ->assertSee('Equipment readiness')
             ->assertSee('Equipment records')
             ->assertSee('Inspections')
