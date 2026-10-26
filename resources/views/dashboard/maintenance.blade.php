@@ -33,10 +33,6 @@
                     @endif
                 </p>
             </div>
-            <div class="maintenance-focus-date">
-                <small>Today</small>
-                <strong>{{ now()->format('M d, Y') }}</strong>
-            </div>
             <a class="maintenance-focus-button" href="{{ route('inspections.create') }}">Start equipment check <span aria-hidden="true">→</span></a>
         </section>
 
