@@ -84,6 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index')->middleware('permission:reports');
     Route::get('/reports/export/{format}', [ReportController::class, 'export'])->name('reports.export')->middleware('permission:reports');
     Route::get('/settings', [OperationsPagesController::class, 'settings'])->name('settings.index')->middleware('permission:settings');
+    Route::delete('/settings/operational-data', [OperationsPagesController::class, 'clearOperationalData'])
+        ->name('settings.clear-operational-data')
+        ->middleware('role:super_admin');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

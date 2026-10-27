@@ -3,6 +3,7 @@
 
     <div class="ops-page">
         @if(session('status') === 'profile-updated')<div class="ops-flash" role="status">Account information saved.</div>@endif
+        @if(session('status') === 'operational-data-cleared')<div class="ops-flash" role="status">Operational data cleared. User accounts were preserved.</div>@endif
         <div class="ops-grid-sidebar" style="align-items:stretch">
             <nav class="ops-card ops-tabs" aria-label="Settings sections">
                 <a class="ops-tab active" href="#account-settings-panel" aria-current="page"><span aria-hidden="true">♙</span>Account</a>
@@ -17,6 +18,9 @@
                     <a class="ops-tab" href="{{ route('personnel.index') }}"><span aria-hidden="true">♙</span>Personnel</a>
                 @else
                     <span class="ops-tab disabled" aria-disabled="true" title="User and role management is not enabled for your role"><span aria-hidden="true">♙</span>User &amp; Role <small>Unavailable</small></span>
+                @endif
+                @if($canClearOperationalData)
+                    <a class="ops-tab" href="#data-management-panel"><span aria-hidden="true">⌫</span>Data management</a>
                 @endif
                 <span class="ops-tab disabled" aria-disabled="true" title="Notification preferences are not available yet"><span aria-hidden="true">♧</span>Notifications <small>Not configured</small></span>
                 @if($canViewReports)
@@ -62,6 +66,44 @@
                 </div>
             </section>
         </div>
+        @if($canClearOperationalData)
+            <section class="ops-card" id="data-management-panel" style="margin-top:16px">
+                <div class="ops-card-heading">Super Admin · Data management</div>
+                <div class="ops-card-body" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <p style="margin:0;color:#718197;font-size:12px">Permanently remove equipment, inspections, maintenance, repairs, schedules, history, predictions, and reference counters. User accounts and settings are kept.</p>
+                    <button type="button" class="ops-button" data-modal-open="clear-operational-data-modal">Clear operational data</button>
+                </div>
+            </section>
+            <dialog id="clear-operational-data-modal" class="app-modal" aria-labelledby="clear-operational-data-title"
+                data-open-on-load="{{ $errors->has('password') && old('_form') === 'clear-operational-data' ? 'true' : 'false' }}">
+                <div class="app-modal-panel">
+                    <header class="app-modal-header">
+                        <div>
+                            <h2 id="clear-operational-data-title">Clear operational data?</h2>
+                            <p>This permanently deletes operational records. User accounts are not deleted.</p>
+                        </div>
+                        <button type="button" class="app-modal-close" aria-label="Close dialog" data-modal-close>&times;</button>
+                    </header>
+                    <div class="app-modal-body">
+                        <p>Equipment, inspections, maintenance and repairs, scheduled work, equipment history, risk predictions, and record reference counters will be removed. This cannot be undone.</p>
+                        <form method="POST" action="{{ route('settings.clear-operational-data') }}">
+                            @csrf
+                            @method('DELETE')
+                            <input type="hidden" name="_form" value="clear-operational-data">
+                            <div class="app-modal-field">
+                                <label for="clear-operational-data-password">Confirm with your Super Admin password</label>
+                                <input id="clear-operational-data-password" type="password" name="password" autocomplete="current-password" required>
+                                @error('password')<span class="app-modal-error">{{ $message }}</span>@enderror
+                            </div>
+                            <footer class="app-modal-footer" style="margin:16px -20px -20px">
+                                <button type="button" class="app-modal-button" data-modal-close>Cancel</button>
+                                <button type="submit" class="app-modal-button primary">Delete operational data</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </dialog>
+        @endif
         <p style="margin:10px 0;color:#8996a7;font-size:10px">Notification preferences and database backups are not available yet. Use Reports &amp; exports for permitted operational data exports.</p>
     </div>
 </x-app-layout>

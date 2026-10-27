@@ -443,8 +443,32 @@ class OperationsPagesController extends Controller
             'user' => $user,
             'canAccessDashboard' => $permissions->allows($role, 'dashboard'),
             'canManageRoles' => $role === 'super_admin',
+            'canClearOperationalData' => $role === 'super_admin',
             'canViewPersonnel' => $permissions->allows($role, 'personnel'),
             'canViewReports' => $permissions->allows($role, 'reports'),
         ]);
+    }
+
+    public function clearOperationalData(Request $request): RedirectResponse
+    {
+        $request->validate([
+            '_form' => ['required', 'in:clear-operational-data'],
+            'password' => ['required', 'current_password'],
+        ]);
+
+        DB::transaction(function (): void {
+            foreach ([
+                'equipment_status_histories',
+                'risk_predictions',
+                'inspections',
+                'maintenances',
+                'equipment',
+                'record_reference_sequences',
+            ] as $table) {
+                DB::table($table)->delete();
+            }
+        });
+
+        return redirect()->route('settings.index')->with('status', 'operational-data-cleared');
     }
 }
