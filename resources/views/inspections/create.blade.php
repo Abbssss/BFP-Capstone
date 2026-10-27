@@ -8,6 +8,7 @@
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <form method="POST" action="{{ route('inspections.store') }}" class="space-y-4">
                     @csrf
+                    <input type="hidden" name="_form" value="create-inspection">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Equipment</label>
@@ -29,7 +30,18 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Inspector</label>
-                            <input type="text" name="inspector_name" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @if(auth()->user()->role === 'maintenance')
+                                <input type="hidden" name="inspector_user_id" value="{{ auth()->id() }}">
+                                <input type="text" value="{{ auth()->user()->name }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" readonly>
+                            @else
+                                <select name="inspector_user_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                    <option value="">Select inspector</option>
+                                    @foreach($inspectorOptions as $inspector)
+                                        <option value="{{ $inspector->id }}" @selected(old('inspector_user_id') == $inspector->id)>{{ $inspector->name }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
+                            @error('inspector_user_id')<span class="text-red-600">{{ $message }}</span>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Inspection Type</label>

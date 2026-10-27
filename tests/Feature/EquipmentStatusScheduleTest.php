@@ -14,6 +14,90 @@ class EquipmentStatusScheduleTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_inspector_options_follow_role_and_office(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $officeMaintenance = User::factory()->create([
+            'name' => 'Office Inspector',
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+        $inactiveUser = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'inactive',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+        $otherOfficeUser = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'OTHER-OFFICE',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('inspections.index'))
+            ->assertOk()
+            ->assertViewHas('inspectorOptions', fn ($users) => $users->contains('id', $admin->id)
+                && $users->contains('id', $officeMaintenance->id)
+                && ! $users->contains('id', $inactiveUser->id)
+                && ! $users->contains('id', $otherOfficeUser->id));
+
+        $maintenanceUser = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+        $this->actingAs($maintenanceUser)
+            ->get(route('inspections.index'))
+            ->assertOk()
+            ->assertSee('name="inspector_user_id" value="'.$maintenanceUser->id.'"', false)
+            ->assertSee('value="'.$maintenanceUser->name.'" readonly', false)
+            ->assertViewHas('inspectorOptions', fn ($users) => $users->isEmpty());
+    }
+
+    public function test_inspection_store_restricts_admin_inspectors_and_uses_maintenance_user(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $outsideInspector = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'OTHER-OFFICE',
+        ]);
+        $equipment = $this->createEquipment('Operational');
+        $payload = [
+            '_form' => 'create-inspection',
+            'equipment_id' => $equipment->id,
+            'inspection_date' => now()->format('Y-m-d\\TH:i'),
+            'inspection_type' => 'Routine',
+            'outcome' => 'Passed',
+        ];
+
+        $this->actingAs($admin)
+            ->from(route('inspections.index'))
+            ->post(route('inspections.store'), [...$payload, 'inspector_user_id' => $outsideInspector->id])
+            ->assertSessionHasErrors('inspector_user_id');
+
+        $maintenanceUser = User::factory()->create([
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+        $sameOfficeSubstitute = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+            'office_code' => 'TEST-OFFICE',
+        ]);
+
+        $this->actingAs($maintenanceUser)
+            ->post(route('inspections.store'), [...$payload, 'inspector_user_id' => $sameOfficeSubstitute->id])
+            ->assertRedirect(route('inspections.index'));
+
+        $this->assertDatabaseHas('inspections', [
+            'equipment_id' => $equipment->id,
+            'inspector_name' => $maintenanceUser->name,
+        ]);
+    }
+
     public function test_equipment_status_appears_in_inspection_maintenance_and_repair_sections(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);

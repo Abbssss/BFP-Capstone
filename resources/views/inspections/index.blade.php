@@ -219,7 +219,18 @@
                         </div>
                         <div class="app-modal-field">
                             <label for="inspection-inspector">Inspector</label>
-                            <input id="inspection-inspector" name="inspector_name" value="{{ old('inspector_name', Auth::user()->name) }}" required>
+                            @if(Auth::user()->role === 'maintenance')
+                                <input type="hidden" name="inspector_user_id" value="{{ Auth::id() }}">
+                                <input id="inspection-inspector" value="{{ Auth::user()->name }}" readonly>
+                            @else
+                                <select id="inspection-inspector" name="inspector_user_id" required>
+                                    <option value="">Select inspector</option>
+                                    @foreach($inspectorOptions as $inspector)
+                                        <option value="{{ $inspector->id }}" @selected(old('inspector_user_id') == $inspector->id)>{{ $inspector->name }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
+                            @error('inspector_user_id')<span class="app-modal-error">{{ $message }}</span>@enderror
                             @error('inspector_name')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">

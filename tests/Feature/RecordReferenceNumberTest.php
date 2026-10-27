@@ -32,10 +32,11 @@ class RecordReferenceNumberTest extends TestCase
         ];
 
         $this->actingAs($admin)->post(route('inspections.store'), [
+            '_form' => 'create-inspection',
             'equipment_id' => $equipment->id,
+            'inspector_user_id' => $admin->id,
             'reference_number' => 'MANUAL-INSPECTION',
             'inspection_date' => now()->format('Y-m-d\TH:i'),
-            'inspector_name' => $admin->name,
             'inspection_type' => 'Routine',
             'outcome' => 'Passed',
         ])->assertRedirect(route('inspections.index'));

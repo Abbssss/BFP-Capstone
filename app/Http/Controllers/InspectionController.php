@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Equipment;
 use App\Models\EquipmentStatusHistory;
 use App\Models\Inspection;
+use App\Models\User;
 use App\Services\EquipmentPriorityService;
 use App\Services\RecordReferenceNumberService;
 use App\Support\OfficeScope;
@@ -65,6 +66,12 @@ class InspectionController extends Controller
             ->orderBy('equipment_name')
             ->limit(10)
             ->get();
+        $inspectorOptions = $request->user()->role === 'maintenance'
+            ? collect()
+            : OfficeScope::personnel(User::query())
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get();
         $outcomes = OfficeScope::records(Inspection::query())->select('outcome')->whereNotNull('outcome')->distinct()->orderBy('outcome')->pluck('outcome');
         $types = OfficeScope::records(Inspection::query())->select('inspection_type')->whereNotNull('inspection_type')->distinct()->orderBy('inspection_type')->pluck('inspection_type');
 
@@ -72,6 +79,7 @@ class InspectionController extends Controller
             'inspections',
             'equipmentOptions',
             'equipmentUnderInspection',
+            'inspectorOptions',
             'priorityInspectionSchedule',
             'outcomes',
             'types'
@@ -81,8 +89,14 @@ class InspectionController extends Controller
     public function create(): View
     {
         $equipment = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
+        $inspectorOptions = request()->user()->role === 'maintenance'
+            ? collect()
+            : OfficeScope::personnel(User::query())
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get();
 
-        return view('inspections.create', compact('equipment'));
+        return view('inspections.create', compact('equipment', 'inspectorOptions'));
     }
 
     public function store(Request $request, RecordReferenceNumberService $references): RedirectResponse
@@ -90,7 +104,12 @@ class InspectionController extends Controller
         $validated = $request->validate([
             'equipment_id' => ['required', OfficeScope::equipmentExistsRule()],
             'inspection_date' => ['required', 'date'],
-            'inspector_name' => ['required', 'string'],
+            'inspector_name' => ['required_if:_form,complete-equipment-inspection', 'nullable', 'string'],
+            'inspector_user_id' => [
+                'required_unless:_form,complete-equipment-inspection',
+                'nullable',
+                OfficeScope::personnelExistsRule($request->user())->where('status', 'active'),
+            ],
             'inspection_type' => ['required', 'string'],
             'condition_observed' => ['nullable', 'string'],
             'functional_test_result' => ['nullable', 'string'],
@@ -117,8 +136,16 @@ class InspectionController extends Controller
             }
 
             $inspectionData = collect($validated)->except([
-                '_form', '_equipment_id', 'equipment_status',
+                '_form', '_equipment_id', 'equipment_status', 'inspector_user_id',
             ])->all();
+            if ($request->user()->role === 'maintenance') {
+                $inspectionData['inspector_name'] = $request->user()->name;
+            } elseif (($validated['_form'] ?? null) !== 'complete-equipment-inspection') {
+                $inspectionData['inspector_name'] = OfficeScope::personnel(User::query(), $request->user())
+                    ->where('status', 'active')
+                    ->findOrFail($validated['inspector_user_id'])
+                    ->name;
+            }
             $inspectionData['reference_number'] = $references->nextFor($equipment);
             $inspectionData['approval_status'] = $request->user()->role === 'maintenance'
                 || $inspectionData['outcome'] === 'Requires Further Assessment'
