@@ -87,7 +87,7 @@ class AdminWorkspaceTest extends TestCase
     {
         $superAdmin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
 
-        $this->actingAs($superAdmin)
+        $response = $this->actingAs($superAdmin)
             ->get('/dashboard')
             ->assertOk()
             ->assertSee('Equipment records')
@@ -99,6 +99,7 @@ class AdminWorkspaceTest extends TestCase
             ->assertSee('Personnel')
             ->assertSee('Roles &amp; Permissions', false)
             ->assertSee('Reports')
+            ->assertSee('Approvals')
             ->assertDontSee('Predictions')
             ->assertSee('Defect Reports')
             ->assertSee('Audit Log')
@@ -106,6 +107,17 @@ class AdminWorkspaceTest extends TestCase
             ->assertDontSee('External recommendations')
             ->assertDontSee('Add user')
             ->assertDontSee('Create user account');
+
+        $navigation = substr(
+            $response->getContent(),
+            strpos($response->getContent(), '<nav class="app-side-nav"')
+        );
+        $dashboardPosition = strpos($navigation, '>Dashboard');
+        $approvalsPosition = strpos($navigation, '>Approvals');
+        $equipmentPosition = strpos($navigation, '>Equipment<');
+
+        $this->assertLessThan($approvalsPosition, $dashboardPosition);
+        $this->assertLessThan($equipmentPosition, $approvalsPosition);
     }
 
     public function test_super_admin_dashboard_shows_schedule_based_equipment_priorities(): void

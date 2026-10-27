@@ -27,6 +27,7 @@ class OperationsPagesController extends Controller
         $equipmentUnderRepair = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->where('status', 'Under Repair')
             ->orderBy('equipment_name')
+            ->limit(10)
             ->get();
         $repairs = OfficeScope::records(Maintenance::query())->with([
             'assignedTo',

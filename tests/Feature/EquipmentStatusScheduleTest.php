@@ -41,6 +41,45 @@ class EquipmentStatusScheduleTest extends TestCase
             ->assertSee($repairEquipment->asset_code);
     }
 
+    public function test_equipment_status_sections_show_at_most_ten_rows_below_the_main_ops_card(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        for ($index = 0; $index < 11; $index++) {
+            $this->createEquipment('Under Inspection');
+            $this->createEquipment($index % 2 === 0 ? 'Under Maintenance' : 'Under Repair');
+            $this->createEquipment('Under Repair');
+        }
+
+        $this->actingAs($admin);
+
+        $inspectionResponse = $this->get(route('inspections.index'))
+            ->assertOk()
+            ->assertViewHas('equipmentUnderInspection', fn ($records) => $records->count() === 10);
+        $inspectionHtml = $inspectionResponse->getContent();
+        $this->assertGreaterThan(
+            strpos($inspectionHtml, 'No inspection records match these filters.'),
+            strpos($inspectionHtml, 'Equipment currently under inspection')
+        );
+
+        $maintenanceResponse = $this->get(route('maintenances.index'))
+            ->assertOk()
+            ->assertViewHas('equipmentUnderMaintenance', fn ($records) => $records->count() === 10);
+        $maintenanceHtml = $maintenanceResponse->getContent();
+        $this->assertGreaterThan(
+            strpos($maintenanceHtml, 'No maintenance tasks match these filters.'),
+            strpos($maintenanceHtml, 'Equipment currently under maintenance or repair')
+        );
+
+        $repairResponse = $this->get(route('repairs.index'))
+            ->assertOk()
+            ->assertViewHas('statusEquipment', fn ($records) => $records->count() === 10);
+        $repairHtml = $repairResponse->getContent();
+        $this->assertGreaterThan(
+            strpos($repairHtml, 'No repair records have been reported.'),
+            strpos($repairHtml, 'Equipment currently under repair')
+        );
+    }
+
     public function test_archived_equipment_is_hidden_from_operational_views_but_available_in_archive(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);

@@ -57,11 +57,13 @@ class InspectionController extends Controller
             ])
             ->filter(fn (array $record): bool => $record['priority'] === 'High' && $record['date'] !== null)
             ->sortBy('date')
+            ->take(10)
             ->values();
         $equipmentOptions = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
         $equipmentUnderInspection = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->where('status', 'Under Inspection')
             ->orderBy('equipment_name')
+            ->limit(10)
             ->get();
         $outcomes = OfficeScope::records(Inspection::query())->select('outcome')->whereNotNull('outcome')->distinct()->orderBy('outcome')->pluck('outcome');
         $types = OfficeScope::records(Inspection::query())->select('inspection_type')->whereNotNull('inspection_type')->distinct()->orderBy('inspection_type')->pluck('inspection_type');

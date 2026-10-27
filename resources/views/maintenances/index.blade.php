@@ -4,41 +4,6 @@
     <div class="ops-page">
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="ops-flash" role="alert">Please review the highlighted fields and try again.</div>@endif
-        @if($equipmentUnderMaintenance->isNotEmpty())
-            <section class="ops-card equipment-status-section">
-                <div class="ops-card-heading">Equipment currently under maintenance or repair</div>
-                <div class="ops-table-scroll">
-                    <table class="ops-table">
-                        <thead><tr><th>Asset code</th><th>Equipment</th><th>Category</th><th>Location</th><th>Assigned to</th><th>Status</th><th>Action</th></tr></thead>
-                        <tbody>
-                            @foreach($equipmentUnderMaintenance as $item)
-                                <tr>
-                                    <td>{{ $item->asset_code }}</td><td>{{ $item->equipment_name }}</td><td>{{ $item->category }}</td>
-                                    <td>{{ $item->location ?: '—' }}</td><td>{{ $item->assignedUser?->name ?? 'Unassigned' }}</td>
-                                    <td><span class="ops-pill warning">{{ $item->status }}</span></td>
-                                    <td>
-                                        @if($item->status === 'Under Maintenance')
-                                            <button
-                                                type="button"
-                                                class="equipment-action"
-                                                data-modal-open="equipment-work-record-modal"
-                                                data-work-record-url="{{ route('maintenance.equipment-work.store', $item) }}"
-                                                data-work-equipment-id="{{ $item->id }}"
-                                                data-work-equipment-name="{{ $item->equipment_name }}"
-                                                data-work-kind="Maintenance"
-                                                data-work-default-status="Under Maintenance"
-                                            >Record maintenance</button>
-                                        @else
-                                            <span class="equipment-status-hint">Record this in Repairs</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        @endif
         <section class="ops-card">
             <form method="GET" action="{{ route('maintenances.index') }}" class="ops-toolbar">
                 <div class="ops-filters">
@@ -83,6 +48,41 @@
             </div>
             <div class="ops-table-footer"><span>Showing {{ $maintenances->firstItem() ?? 0 }}–{{ $maintenances->lastItem() ?? 0 }} of {{ $maintenances->total() }} records</span><div class="ops-pagination">{{ $maintenances->links() }}</div></div>
         </section>
+        @if($equipmentUnderMaintenance->isNotEmpty())
+            <section class="ops-card equipment-status-section">
+                <div class="ops-card-heading">Equipment currently under maintenance or repair</div>
+                <div class="ops-table-scroll">
+                    <table class="ops-table">
+                        <thead><tr><th>Asset code</th><th>Equipment</th><th>Category</th><th>Location</th><th>Assigned to</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody>
+                            @foreach($equipmentUnderMaintenance as $item)
+                                <tr>
+                                    <td>{{ $item->asset_code }}</td><td>{{ $item->equipment_name }}</td><td>{{ $item->category }}</td>
+                                    <td>{{ $item->location ?: '—' }}</td><td>{{ $item->assignedUser?->name ?? 'Unassigned' }}</td>
+                                    <td><span class="ops-pill warning">{{ $item->status }}</span></td>
+                                    <td>
+                                        @if($item->status === 'Under Maintenance')
+                                            <button
+                                                type="button"
+                                                class="equipment-action"
+                                                data-modal-open="equipment-work-record-modal"
+                                                data-work-record-url="{{ route('maintenance.equipment-work.store', $item) }}"
+                                                data-work-equipment-id="{{ $item->id }}"
+                                                data-work-equipment-name="{{ $item->equipment_name }}"
+                                                data-work-kind="Maintenance"
+                                                data-work-default-status="Under Maintenance"
+                                            >Record maintenance</button>
+                                        @else
+                                            <span class="equipment-status-hint">Record this in Repairs</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
     </div>
     @foreach($maintenances as $maintenance)
         @include('operations.record-view-modal', [

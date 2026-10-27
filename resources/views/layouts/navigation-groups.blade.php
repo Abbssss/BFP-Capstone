@@ -13,7 +13,7 @@
     $isSuperAdmin = $currentRole === 'super_admin';
     $equipmentRoutes = ['equipment.*', 'inspections.*', 'maintenances.*', 'repairs.*', 'schedule.*'];
     $userRoutes = ['users.*', 'personnel.*', 'roles.permissions'];
-    $reportRoutes = ['reports.*', 'defects.*', 'audit.*', 'approvals.*'];
+    $reportRoutes = ['reports.*', 'defects.*', 'audit.*'];
     $canReviewApprovals = $isSuperAdmin || ($currentRole === 'admin' && $canAccess('approvals'));
     $equipmentOpen = request()->routeIs(...$equipmentRoutes);
     $usersOpen = request()->routeIs(...$userRoutes);
@@ -23,6 +23,11 @@
 <a class="{{ $navLinkClass }} {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
     <span class="{{ $navIconClass }}" aria-hidden="true">▦</span>Dashboard
 </a>
+@if($canReviewApprovals)
+    <a class="{{ $navLinkClass }} {{ request()->routeIs('approvals.*') ? 'active' : '' }}" href="{{ route('approvals.index') }}">
+        <span class="{{ $navIconClass }}" aria-hidden="true">✓</span>Approvals
+    </a>
+@endif
 
 @if($canAccess('equipment') || $canAccess('inspections') || $canAccess('maintenance') || $canAccess('repairs') || $canAccess('schedule'))
     <details class="{{ $navGroupClass }}" @if($equipmentOpen) open @endif>
@@ -54,7 +59,6 @@
         <div class="{{ $navChildClass }}">
             @if($canAccess('reports'))<a class="{{ $navLinkClass }} {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">Reports</a>@endif
             @if($canAccess('defect_reports'))<a class="{{ $navLinkClass }} {{ request()->routeIs('defects.*') ? 'active' : '' }}" href="{{ route('defects.index') }}">Defect Reports</a>@endif
-            @if($canReviewApprovals)<a class="{{ $navLinkClass }} {{ request()->routeIs('approvals.*') ? 'active' : '' }}" href="{{ route('approvals.index') }}">Approvals</a>@endif
             @if($isSuperAdmin && $canAccess('audit_logs'))<a class="{{ $navLinkClass }} {{ request()->routeIs('audit.*') ? 'active' : '' }}" href="{{ route('audit.index') }}">Audit Log</a>@endif
         </div>
     </details>

@@ -67,6 +67,7 @@ class MaintenanceController extends Controller
         $equipmentUnderMaintenance = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->whereIn('status', ['Under Maintenance', 'Under Repair'])
             ->orderBy('equipment_name')
+            ->limit(10)
             ->get();
         $statuses = OfficeScope::records(Maintenance::query())->select('status')->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         $types = OfficeScope::records(Maintenance::query())->select('maintenance_type')->whereNotNull('maintenance_type')->distinct()->orderBy('maintenance_type')->pluck('maintenance_type');

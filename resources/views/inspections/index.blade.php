@@ -4,6 +4,50 @@
     <div class="ops-page">
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="ops-flash" role="alert">Please review the highlighted fields and try again.</div>@endif
+        <section class="ops-card">
+            <form method="GET" action="{{ route('inspections.index') }}" class="ops-toolbar">
+                <div class="ops-filters">
+                    <label class="ops-search"><span aria-hidden="true">⌕</span><input name="search" type="search" value="{{ request('search') }}" placeholder="Search records..." aria-label="Search inspections"></label>
+                    <select name="status" class="ops-filter" aria-label="Filter by outcome">
+                        <option value="">All status</option>
+                        @foreach($outcomes as $outcome)<option value="{{ $outcome }}" @selected(request('status') === $outcome)>{{ $outcome }}</option>@endforeach
+                    </select>
+                    <select name="category" class="ops-filter" aria-label="Filter by inspection type">
+                        <option value="">All categories</option>
+                        @foreach($types as $type)<option value="{{ $type }}" @selected(request('category') === $type)>{{ $type }}</option>@endforeach
+                    </select>
+                    <button type="submit" class="ops-button secondary small">Filter</button>
+                    @if(request()->filled('search'))
+                        <a class="ops-button secondary small" href="{{ route('inspections.index', request()->except(['search', 'page'])) }}">Clear search</a>
+                    @endif
+                </div>
+                <button type="button" class="ops-button small" data-modal-open="inspection-create-modal">＋ Add new</button>
+            </form>
+            <div class="ops-table-scroll">
+                <table class="ops-table">
+                    <thead><tr><th>Record</th><th>Type</th><th>Equipment</th><th>Inspector</th><th>Date</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                    @forelse($inspections as $inspection)
+                        <tr>
+                            <td>{{ $inspection->reference_number }}</td><td>{{ $inspection->inspection_type }}</td><td>{{ $inspection->equipment?->equipment_name ?? '—' }}</td><td>{{ $inspection->inspector_name }}</td>
+                            <td>{{ $inspection->inspection_date?->format('M d, Y') ?? $inspection->inspection_date }}</td>
+                            <td><span class="ops-pill {{ $inspection->equipment_priority === 'High' ? 'danger' : ($inspection->equipment_priority === 'Medium' ? 'warning' : 'neutral') }}">{{ $inspection->equipment_priority ?? '—' }}</span></td>
+                            <td><span class="ops-pill {{ $inspection->status === 'Pending' ? 'warning' : ($inspection->outcome === 'Failed' ? 'danger' : ($inspection->outcome === 'Passed' ? '' : 'warning')) }}">{{ $inspection->status === 'Pending' ? 'Pending' : $inspection->outcome }}</span></td>
+                            <td>
+                                <button type="button" class="equipment-action" data-modal-open="inspection-record-{{ $inspection->id }}">View</button>
+                                @if($inspection->status === 'Pending')
+                                    <button type="button" class="equipment-action" data-modal-open="inspection-status-{{ $inspection->id }}">Update</button>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="8" class="ops-empty">No inspection records match these filters.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="ops-table-footer"><span>Showing {{ $inspections->firstItem() ?? 0 }}–{{ $inspections->lastItem() ?? 0 }} of {{ $inspections->total() }} records</span><div class="ops-pagination">{{ $inspections->links() }}</div></div>
+        </section>
         @if($priorityInspectionSchedule->isNotEmpty())
             <section class="ops-card equipment-status-section">
                 <div class="ops-card-heading">High-priority inspections</div>
@@ -53,50 +97,6 @@
                 </div>
             </section>
         @endif
-        <section class="ops-card">
-            <form method="GET" action="{{ route('inspections.index') }}" class="ops-toolbar">
-                <div class="ops-filters">
-                    <label class="ops-search"><span aria-hidden="true">⌕</span><input name="search" type="search" value="{{ request('search') }}" placeholder="Search records..." aria-label="Search inspections"></label>
-                    <select name="status" class="ops-filter" aria-label="Filter by outcome">
-                        <option value="">All status</option>
-                        @foreach($outcomes as $outcome)<option value="{{ $outcome }}" @selected(request('status') === $outcome)>{{ $outcome }}</option>@endforeach
-                    </select>
-                    <select name="category" class="ops-filter" aria-label="Filter by inspection type">
-                        <option value="">All categories</option>
-                        @foreach($types as $type)<option value="{{ $type }}" @selected(request('category') === $type)>{{ $type }}</option>@endforeach
-                    </select>
-                    <button type="submit" class="ops-button secondary small">Filter</button>
-                    @if(request()->filled('search'))
-                        <a class="ops-button secondary small" href="{{ route('inspections.index', request()->except(['search', 'page'])) }}">Clear search</a>
-                    @endif
-                </div>
-                <button type="button" class="ops-button small" data-modal-open="inspection-create-modal">＋ Add new</button>
-            </form>
-            <div class="ops-table-scroll">
-                <table class="ops-table">
-                    <thead><tr><th>Record</th><th>Type</th><th>Equipment</th><th>Inspector</th><th>Date</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                    @forelse($inspections as $inspection)
-                        <tr>
-                            <td>{{ $inspection->reference_number }}</td><td>{{ $inspection->inspection_type }}</td><td>{{ $inspection->equipment?->equipment_name ?? '—' }}</td><td>{{ $inspection->inspector_name }}</td>
-                            <td>{{ $inspection->inspection_date?->format('M d, Y') ?? $inspection->inspection_date }}</td>
-                            <td><span class="ops-pill {{ $inspection->equipment_priority === 'High' ? 'danger' : ($inspection->equipment_priority === 'Medium' ? 'warning' : 'neutral') }}">{{ $inspection->equipment_priority ?? '—' }}</span></td>
-                            <td><span class="ops-pill {{ $inspection->status === 'Pending' ? 'warning' : ($inspection->outcome === 'Failed' ? 'danger' : ($inspection->outcome === 'Passed' ? '' : 'warning')) }}">{{ $inspection->status === 'Pending' ? 'Pending' : $inspection->outcome }}</span></td>
-                            <td>
-                                <button type="button" class="equipment-action" data-modal-open="inspection-record-{{ $inspection->id }}">View</button>
-                                @if($inspection->status === 'Pending')
-                                    <button type="button" class="equipment-action" data-modal-open="inspection-status-{{ $inspection->id }}">Update</button>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="ops-empty">No inspection records match these filters.</td></tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="ops-table-footer"><span>Showing {{ $inspections->firstItem() ?? 0 }}–{{ $inspections->lastItem() ?? 0 }} of {{ $inspections->total() }} records</span><div class="ops-pagination">{{ $inspections->links() }}</div></div>
-        </section>
     </div>
     @foreach($inspections as $inspection)
         @include('operations.record-view-modal', [
