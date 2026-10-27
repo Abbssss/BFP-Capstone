@@ -62,7 +62,7 @@ class MaintenanceController extends Controller
                 $maintenance->priority === 'Critical' ? 'Critical' : $equipmentPriority
             );
         });
-        $equipmentOptions = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
+        $equipmentOptions = OfficeScope::equipment(Equipment::query())->notArchived()->with('assignedUser')->orderBy('equipment_name')->get();
         $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
         $equipmentUnderMaintenance = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->whereIn('status', ['Under Maintenance', 'Under Repair'])
@@ -76,7 +76,7 @@ class MaintenanceController extends Controller
 
     public function create(Request $request): View
     {
-        $equipment = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
+        $equipment = OfficeScope::equipment(Equipment::query())->notArchived()->with('assignedUser')->orderBy('equipment_name')->get();
         $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
         $defaultMaintenanceType = $request->query('type') === 'Repair' ? 'Repair' : 'Preventive';
 
@@ -283,7 +283,7 @@ class MaintenanceController extends Controller
     public function edit(string $id): View
     {
         $maintenance = OfficeScope::records(Maintenance::query())->findOrFail($id);
-        $equipment = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
+        $equipment = OfficeScope::equipment(Equipment::query())->notArchived()->with('assignedUser')->orderBy('equipment_name')->get();
         $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
 
         return view('maintenances.edit', compact('maintenance', 'equipment', 'personnelOptions'));

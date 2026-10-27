@@ -24,7 +24,7 @@ class SearchController extends Controller
         $results = collect();
 
         if ($term !== '' && $permissions->allows($user->role, 'equipment')) {
-            $equipmentQuery = OfficeScope::equipment(Equipment::query());
+            $equipmentQuery = OfficeScope::equipment(Equipment::query())->notArchived();
             SearchQuery::apply($equipmentQuery, $term, [
                 'equipment_name', 'asset_code', 'asset_tag', 'serial_number', 'category',
                 'manufacturer', 'model', 'location', 'office_code', 'status',

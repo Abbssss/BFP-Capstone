@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Equipment extends Model
 {
     public const CATEGORIES = ['Mechanical', 'Non Mechanical'];
+
+    public const ARCHIVED_STATUSES = ['Out of Service', 'Retired'];
 
     protected $table = 'equipment';
 
@@ -27,6 +30,11 @@ class Equipment extends Model
         'next_inspection_date' => 'date',
         'last_maintenance_date' => 'date',
     ];
+
+    public function scopeNotArchived(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', self::ARCHIVED_STATUSES);
+    }
 
     public function history(): HasMany
     {

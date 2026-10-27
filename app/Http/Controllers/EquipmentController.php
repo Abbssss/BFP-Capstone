@@ -34,13 +34,13 @@ class EquipmentController extends Controller
         $isArchive = ($filters['section'] ?? 'all') === 'archive';
         $scopedEquipment = OfficeScope::equipment(Equipment::query());
         $archiveCount = (clone $scopedEquipment)
-            ->whereIn('status', ['Out of Service', 'Retired'])
+            ->whereIn('status', Equipment::ARCHIVED_STATUSES)
             ->count();
         $equipmentQuery = (clone $scopedEquipment)->with('assignedUser', 'latestInspection', 'maintenances')
             ->when(
                 $isArchive,
-                fn ($query) => $query->whereIn('status', ['Out of Service', 'Retired']),
-                fn ($query) => $query->whereNotIn('status', ['Out of Service', 'Retired'])
+                fn ($query) => $query->whereIn('status', Equipment::ARCHIVED_STATUSES),
+                fn ($query) => $query->notArchived()
             )
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['category'] ?? null, fn ($query, $category) => $query->where('category', $category));
@@ -55,12 +55,12 @@ class EquipmentController extends Controller
             return $item;
         });
         $users = OfficeScope::personnel(User::query())->whereNotNull('office_code')->orderBy('name')->get();
-        $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipmentOptions = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
         $statuses = (clone $scopedEquipment)
             ->when(
                 $isArchive,
-                fn ($query) => $query->whereIn('status', ['Out of Service', 'Retired']),
-                fn ($query) => $query->whereNotIn('status', ['Out of Service', 'Retired'])
+                fn ($query) => $query->whereIn('status', Equipment::ARCHIVED_STATUSES),
+                fn ($query) => $query->notArchived()
             )
             ->select('status')
             ->distinct()

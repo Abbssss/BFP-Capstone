@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Equipment;
 use App\Models\Inspection;
 use App\Models\Maintenance;
+use App\Services\ReportDataService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,6 +39,66 @@ class EquipmentStatusScheduleTest extends TestCase
             ->assertOk()
             ->assertSee('Equipment currently under repair')
             ->assertSee($repairEquipment->asset_code);
+    }
+
+    public function test_archived_equipment_is_hidden_from_operational_views_but_available_in_archive(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $activeEquipment = $this->createEquipment('Operational');
+        $outOfServiceEquipment = $this->createEquipment('Out of Service');
+        $retiredEquipment = $this->createEquipment('Retired');
+        $activeEquipment->update(['equipment_name' => 'Active inventory asset']);
+        $outOfServiceEquipment->update(['equipment_name' => 'Archived out of service asset']);
+        $retiredEquipment->update(['equipment_name' => 'Archived retired asset']);
+        $outOfServiceEquipment->update(['next_inspection_date' => today()->addDays(3)]);
+        $retiredEquipment->update(['next_inspection_date' => today()->addDays(4)]);
+        $archivedIds = [$outOfServiceEquipment->id, $retiredEquipment->id];
+
+        $this->actingAs($admin)
+            ->get(route('equipment.index'))
+            ->assertOk()
+            ->assertViewHas('equipment', fn ($records) => $records->getCollection()->whereIn('id', $archivedIds)->isEmpty())
+            ->assertViewHas('equipmentOptions', fn ($records) => $records->whereIn('id', $archivedIds)->isEmpty());
+
+        $this->get(route('equipment.index', ['section' => 'archive']))
+            ->assertOk()
+            ->assertSee($outOfServiceEquipment->equipment_name)
+            ->assertSee($retiredEquipment->equipment_name);
+
+        $this->get(route('inspections.index'))
+            ->assertOk()
+            ->assertViewHas('equipmentOptions', fn ($records) => $records->whereIn('id', $archivedIds)->isEmpty())
+            ->assertViewHas('priorityInspectionSchedule', fn ($records) => $records->every(
+                fn (array $record) => ! in_array($record['equipment']->id, $archivedIds, true)
+            ));
+
+        $this->get(route('maintenances.index'))
+            ->assertOk()
+            ->assertViewHas('equipmentOptions', fn ($records) => $records->whereIn('id', $archivedIds)->isEmpty());
+
+        $this->get(route('repairs.index'))
+            ->assertOk()
+            ->assertViewHas('equipmentOptions', fn ($records) => $records->whereIn('id', $archivedIds)->isEmpty());
+
+        $this->get(route('schedule.index'))
+            ->assertOk()
+            ->assertViewHas('paginatedRecords', fn ($records) => $records->getCollection()->every(
+                fn (array $record) => ! in_array($record['record'], [
+                    $outOfServiceEquipment->asset_code,
+                    $retiredEquipment->asset_code,
+                ], true)
+            ));
+
+        $this->get(route('search', ['q' => 'Archived']))
+            ->assertOk()
+            ->assertViewHas('results', fn ($records) => $records->where('type', 'Equipment')->isEmpty());
+
+        $this->get('/dashboard')
+            ->assertOk()
+            ->assertViewHas('equipmentCount', 1);
+
+        $registry = app(ReportDataService::class)->report('equipment-registry', 'quarter', null, 'category', 'TEST-OFFICE');
+        $this->assertSame([$activeEquipment->asset_code], $registry['records']->pluck('values.Asset code')->all());
     }
 
     public function test_recording_an_inspection_from_under_inspection_updates_equipment_and_history(): void

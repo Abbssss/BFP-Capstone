@@ -133,7 +133,7 @@ class DashboardController extends Controller
             ->take(5)
             ->values();
 
-        $assignedEquipment = OfficeScope::equipment(Equipment::query())
+        $assignedEquipment = OfficeScope::equipment(Equipment::query())->notArchived()
             ->where(function ($query) use ($user) {
                 $query->where('assigned_personnel', $user->id)
                     ->orWhereHas('maintenances', fn ($maintenance) => $maintenance
@@ -198,7 +198,7 @@ class DashboardController extends Controller
         $maintenanceTab = $request->validate([
             'maintenance_tab' => ['nullable', 'in:active,completed'],
         ])['maintenance_tab'] ?? 'active';
-        $equipment = OfficeScope::equipment(Equipment::query());
+        $equipment = OfficeScope::equipment(Equipment::query())->notArchived();
         $maintenance = OfficeScope::records(Maintenance::query());
         $inspections = OfficeScope::records(Inspection::query());
         $equipmentCount = (clone $equipment)->count();
@@ -224,7 +224,7 @@ class DashboardController extends Controller
         $inspectionDueCount = (clone $equipment)
             ->whereNotNull('next_inspection_date')
             ->whereDate('next_inspection_date', '<=', today())
-            ->whereNotIn('status', ['Retired'])
+            ->notArchived()
             ->count();
         $maintenanceMonitoring = (clone $maintenance)->with('assignedTo', 'equipment.assignedUser')
             ->when(
@@ -395,7 +395,7 @@ class DashboardController extends Controller
     protected function superAdminDashboard()
     {
         $userCount = User::count();
-        $equipmentCount = Equipment::count();
+        $equipmentCount = Equipment::query()->notArchived()->count();
         $maintenanceCount = Maintenance::count();
         $inspectionCount = Inspection::count();
         $repairCount = Maintenance::query()
@@ -410,7 +410,7 @@ class DashboardController extends Controller
             ->count();
         $activeUserCount = User::where('status', 'active')->count();
         $priorityAnalysis = app(EquipmentPriorityService::class)->summarize(
-            Equipment::with(['latestInspection', 'maintenances'])->get()
+            Equipment::query()->notArchived()->with(['latestInspection', 'maintenances'])->get()
         );
         $priorityRecords = $priorityAnalysis['records']
             ->map(function (array $record): array {
@@ -435,13 +435,13 @@ class DashboardController extends Controller
             ->count();
         $overdueInspectionCount = Equipment::query()
             ->whereDate('next_inspection_date', '<', today())
-            ->whereNotIn('status', ['Retired'])
+            ->notArchived()
             ->count();
         $systemAlertCount = $highPriorityCount + $overdueMaintenanceCount + $overdueInspectionCount;
         $users = User::query()->orderByDesc('updated_at')->limit(4)->get();
         $metricUsers = User::query()->orderBy('name')->get();
         $metricActiveUsers = User::query()->where('status', 'active')->orderBy('name')->get();
-        $metricEquipment = Equipment::with(['assignedUser', 'latestInspection', 'maintenances'])
+        $metricEquipment = Equipment::query()->notArchived()->with(['assignedUser', 'latestInspection', 'maintenances'])
             ->orderBy('equipment_name')
             ->get();
 
@@ -456,7 +456,7 @@ class DashboardController extends Controller
                 'detail' => $record->request_number.' · '.$record->equipment?->equipment_name,
                 'date' => $record->created_at,
             ]))
-            ->concat(Equipment::latest()->limit(4)->get()->map(fn ($record) => [
+            ->concat(Equipment::query()->notArchived()->latest()->limit(4)->get()->map(fn ($record) => [
                 'type' => 'Equipment registered',
                 'detail' => $record->asset_code.' · '.$record->equipment_name,
                 'date' => $record->created_at,

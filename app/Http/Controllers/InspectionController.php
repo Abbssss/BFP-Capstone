@@ -48,7 +48,7 @@ class InspectionController extends Controller
             'latestInspection',
             'maintenances',
         ])
-            ->whereNotIn('status', ['Retired'])
+            ->notArchived()
             ->get()
             ->map(fn (Equipment $item): array => [
                 'equipment' => $item,
@@ -58,7 +58,7 @@ class InspectionController extends Controller
             ->filter(fn (array $record): bool => $record['priority'] === 'High' && $record['date'] !== null)
             ->sortBy('date')
             ->values();
-        $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipmentOptions = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
         $equipmentUnderInspection = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->where('status', 'Under Inspection')
             ->orderBy('equipment_name')
@@ -78,7 +78,7 @@ class InspectionController extends Controller
 
     public function create(): View
     {
-        $equipment = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipment = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
 
         return view('inspections.create', compact('equipment'));
     }
@@ -181,7 +181,7 @@ class InspectionController extends Controller
     public function edit(string $id): View
     {
         $inspection = OfficeScope::records(Inspection::query())->findOrFail($id);
-        $equipment = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipment = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
 
         return view('inspections.edit', compact('inspection', 'equipment'));
     }

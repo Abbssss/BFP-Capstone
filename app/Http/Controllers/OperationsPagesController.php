@@ -23,7 +23,7 @@ class OperationsPagesController extends Controller
 {
     public function repairs(Request $request, EquipmentPriorityService $priorities): View
     {
-        $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipmentOptions = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
         $equipmentUnderRepair = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->where('status', 'Under Repair')
             ->orderBy('equipment_name')
@@ -146,7 +146,7 @@ class OperationsPagesController extends Controller
             'latestInspection',
             'maintenances',
         ])
-            ->whereNotIn('status', ['Retired'])
+            ->notArchived()
             ->get()
             ->map(function (Equipment $item) use ($priorities): ?array {
                 $priority = $priorities->assess($item)['priority'];
@@ -168,7 +168,7 @@ class OperationsPagesController extends Controller
             })
             ->filter()
             ->values();
-        $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
+        $equipmentOptions = OfficeScope::equipment(Equipment::query())->notArchived()->orderBy('equipment_name')->get();
         $personnelOptions = OfficeScope::personnel(User::query())
             ->where('role', 'maintenance')
             ->where('status', 'active')

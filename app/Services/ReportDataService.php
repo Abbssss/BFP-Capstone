@@ -76,7 +76,7 @@ class ReportDataService
                     'Status' => $user->status ?: 'Active',
                     'Created' => $user->created_at?->format('Y-m-d') ?? '—',
                 ], $user->status ?: 'Active', ['role' => str($user->role)->replace('_', ' ')->title()->toString(), 'status' => $user->status ?: 'Active'], $user->created_at)),
-            'equipment-registry' => OfficeScope::equipment(Equipment::query())
+            'equipment-registry' => OfficeScope::equipment(Equipment::query())->notArchived()
                 ->when($officeCode, fn ($query) => $query->where('office_code', $officeCode))
                 ->when($start, fn ($query) => $range($query, 'created_at'))
                 ->orderBy('asset_code')->get()->map(fn (Equipment $equipment) => $this->record([
