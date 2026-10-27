@@ -6,7 +6,7 @@
             <nav class="ops-card report-tabs" aria-label="Report types">
                 @foreach($reportOptions as $key => [$title, $description])
                     <a class="report-tab {{ $report === $key ? 'active' : '' }}" href="{{ route('reports.index', ['report' => $key, 'period' => $period, 'status' => $status]) }}" @if($report === $key) aria-current="page" @endif>
-                        <span class="report-tab-icon" aria-hidden="true">{{ ['user-activity' => '♙', 'equipment-registry' => '⬡', 'maintenance-summary' => '⚒', 'inspection-summary' => '▤', 'ai-predictions' => '⌁', 'audit-activity' => '▧'][$key] }}</span>
+                        <span class="report-tab-icon" aria-hidden="true">{{ ['user-activity' => '♙', 'equipment-registry' => '⬡', 'maintenance-summary' => '⚒', 'inspection-summary' => '▤', 'audit-activity' => '▧'][$key] }}</span>
                         <span><strong>{{ $title }}</strong><small>{{ $description }}</small></span>
                         <span class="report-tab-arrow" aria-hidden="true">›</span>
                     </a>
@@ -47,6 +47,23 @@
                                 @endforeach
                             </select>
                         </label>
+
+                        @if(auth()->user()->role === 'super_admin')
+                            <label class="report-field">
+                                <span>Office code</span>
+                                <select class="ops-filter" name="office_code">
+                                    <option value="" @selected(blank($office_code))>All offices</option>
+                                    @foreach($officeCodes as $availableOfficeCode)
+                                        <option value="{{ $availableOfficeCode }}" @selected($office_code === $availableOfficeCode)>{{ $availableOfficeCode }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @else
+                            <label class="report-field">
+                                <span>Office code</span>
+                                <input class="ops-filter" type="text" value="{{ $office_code ?: auth()->user()->office_code ?: 'Not assigned' }}" readonly>
+                            </label>
+                        @endif
                     </div>
 
                     <div class="report-actions">

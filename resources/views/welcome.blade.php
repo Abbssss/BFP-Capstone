@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#081a31">
     <title>FIRE-PMIS | BFP Sta. Ana, Manila</title>
-    <meta name="description" content="Predictive maintenance and equipment readiness management for BFP Sta. Ana, Manila.">
+    <meta name="description" content="Centralized preventive maintenance scheduling, equipment serviceability monitoring, and reporting for BFP Sta. Ana, Manila.">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -40,15 +40,6 @@
         .trust-icon { color: #b51e24; font-size: 14px; }
         .hero-visual { position: relative; min-height: 420px; border-radius: 10px; background: #0b1c30 url('{{ asset('images/bfp-fire-trucks.jpg') }}') center / cover no-repeat; box-shadow: 0 28px 60px rgba(10, 30, 54, .18); }
         .hero-visual::after { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(130deg, rgba(8,26,49,.08), rgba(8,26,49,.24)); content: ""; }
-        .readiness-card, .risk-card { position: absolute; z-index: 1; border: 1px solid rgba(255,255,255,.65); border-radius: 8px; background: rgba(255,255,255,.96); box-shadow: 0 14px 36px rgba(7, 24, 45, .2); }
-        .readiness-card { top: 28px; right: -22px; min-width: 185px; padding: 15px 17px; }
-        .card-caption { display: block; color: #7e8a9b; font-size: 9px; font-weight: 800; letter-spacing: .12em; }
-        .readiness-card strong { display: inline-block; margin-top: 6px; color: #14243a; font-size: 25px; }
-        .status-pill { float: right; margin-top: 11px; border-radius: 20px; padding: 4px 8px; background: #e8f5ed; color: #267544; font-size: 9px; font-weight: 700; }
-        .risk-card { right: -22px; bottom: 30px; width: 230px; display: flex; gap: 12px; align-items: center; padding: 15px; }
-        .risk-mark { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #fff0ed; color: #bd3427; font-weight: 800; }
-        .risk-card strong { display: block; margin-top: 4px; color: #17273d; font-size: 12px; }
-        .risk-card small { display: block; margin-top: 4px; color: #b6493b; font-size: 10px; }
         .section { padding: 88px 30px; }
         .section-inner { max-width: 1140px; margin: 0 auto; }
         .challenge { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 60px; border-top: 1px solid #edf0f3; background: #f7f8fa; }
@@ -58,7 +49,7 @@
         .challenge-note { display: flex; align-items: flex-start; gap: 11px; color: #263952; font-weight: 600; }
         .feature-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 36px; }
         .feature-heading > p { max-width: 370px; margin: 0 0 4px; color: #6a788b; font-size: 14px; line-height: 1.7; }
-        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px; }
+        .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 17px; }
         .feature-card { min-height: 210px; border: 1px solid #e6eaf0; border-radius: 8px; padding: 22px; background: #fff; transition: box-shadow .18s, transform .18s; }
         .feature-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(22, 41, 67, .08); }
         .feature-number { color: #bd1f24; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
@@ -68,12 +59,21 @@
         .process { background: #f7f8fa; }
         .process-heading { max-width: 580px; margin-bottom: 39px; }
         .process-heading p { margin: 15px 0 0; color: #66758a; font-size: 14px; line-height: 1.7; }
-        .process-steps { display: grid; grid-template-columns: repeat(5, 1fr); }
-        .process-step { position: relative; padding: 0 16px; text-align: center; }
+        .process-steps { display: grid; grid-template-columns: repeat(6, 1fr); }
+        .process-step { position: relative; padding: 0 12px; text-align: center; animation: workflow-highlight 12s ease-in-out infinite; }
+        .process-step:nth-child(2) { animation-delay: 2s; }
+        .process-step:nth-child(3) { animation-delay: 4s; }
+        .process-step:nth-child(4) { animation-delay: 6s; }
+        .process-step:nth-child(5) { animation-delay: 8s; }
+        .process-step:nth-child(6) { animation-delay: 10s; }
         .process-step:not(:last-child)::after { position: absolute; z-index: 0; top: 22px; left: calc(50% + 28px); width: calc(100% - 56px); height: 1px; background: #d9dee6; content: ""; }
         .step-number { position: relative; z-index: 1; display: grid; width: 44px; height: 44px; margin: 0 auto 14px; place-items: center; border: 1px solid #e1c5c5; border-radius: 50%; background: #fff; color: #bd1f24; font-size: 14px; font-weight: 700; }
         .process-step strong { display: block; color: #192a41; font-size: 14px; }
         .process-step span:last-child { display: block; margin-top: 5px; color: #7a8798; font-size: 11px; }
+        @keyframes workflow-highlight {
+            0%, 14% { transform: translateY(-3px); }
+            18%, 100% { transform: translateY(0); }
+        }
         .contact-band { display: flex; align-items: center; justify-content: space-between; gap: 30px; border-radius: 10px; padding: 35px 40px; background: #0b1c34; color: white; }
         .contact-band h2 { margin: 0; color: white; font-size: 26px; }
         .contact-band p { margin: 9px 0 0; color: #bac6d5; font-size: 13px; }
@@ -90,7 +90,6 @@
             .feature-heading { display: block; }
             .feature-heading > p { margin-top: 16px; }
             .feature-grid { grid-template-columns: repeat(2, 1fr); }
-            .readiness-card, .risk-card { right: -12px; }
         }
         @media (max-width: 560px) {
             .site-brand small { font-size: 8px; }
@@ -100,8 +99,6 @@
             .hero-copy > p { font-size: 14px; }
             .trust-row { gap: 12px; }
             .hero-visual { min-height: 300px; }
-            .readiness-card { top: 15px; min-width: 155px; padding: 12px; }
-            .risk-card { bottom: 15px; width: 208px; padding: 12px; }
             .section { padding: 66px 22px; }
             .feature-grid { grid-template-columns: 1fr; }
             .feature-card { min-height: 0; }
@@ -115,6 +112,9 @@
             .contact-band .button-primary { margin-top: 20px; }
             .site-footer { display: block; padding: 22px; line-height: 1.8; }
             .footer-unit { display: block; margin-bottom: 5px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
         }
     </style>
 </head>
@@ -137,9 +137,9 @@
     <main>
         <section class="hero" id="about">
             <div class="hero-copy">
-                <span class="eyebrow">BFP · Equipment readiness</span>
-                <h1>Predictive Maintenance for Mission-Critical Firefighting Equipment.</h1>
-                <p>FIRE-PMIS helps BFP anticipate equipment risks, coordinate maintenance, and protect operational readiness through reliable data and responsible decision support.</p>
+                <span class="eyebrow">BFP · Sta. Ana, Manila</span>
+                <h1>Centralized preventive maintenance for mission-critical equipment.</h1>
+                <p>FIRE-PMIS brings equipment records, maintenance schedules, due-date alerts, inspection findings, and activity reports into one accountable system.</p>
                 <div class="hero-actions">
                     <a class="button-primary" href="{{ route('login') }}">Access FIRE-PMIS <span aria-hidden="true">→</span></a>
                     <a class="button-text" href="#process">See how it works <span aria-hidden="true">↓</span></a>
@@ -147,19 +147,10 @@
                 <div class="trust-row">
                     <span><b class="trust-icon">✓</b> Role-based access</span>
                     <span><b class="trust-icon">✓</b> Audit-ready records</span>
-                    <span><b class="trust-icon">✓</b> Human-reviewed decisions</span>
+                    <span><b class="trust-icon">✓</b> Serviceability tracking</span>
                 </div>
             </div>
-            <div class="hero-visual" role="img" aria-label="Fire engines ready inside a station">
-                <div class="readiness-card">
-                    <span class="card-caption">STATION READINESS</span>
-                    <strong>Operational</strong><span class="status-pill">Ready</span>
-                </div>
-                <div class="risk-card">
-                    <span class="risk-mark">!</span>
-                    <span><span class="card-caption">RISK FLAG</span><strong>Equipment review</strong><small>Review required by personnel</small></span>
-                </div>
-            </div>
+            <div class="hero-visual" role="img" aria-label="Fire engines ready inside a station"></div>
         </section>
 
         <section class="section challenge" id="challenge">
@@ -170,7 +161,7 @@
                 </div>
                 <div class="challenge-copy">
                     <p>Fragmented records and reactive servicing can leave critical equipment unavailable when every second matters.</p>
-                    <div class="challenge-note"><span class="trust-icon">✓</span><span>FIRE-PMIS turns inspections and service records into timely, accountable maintenance action.</span></div>
+                    <div class="challenge-note"><span class="trust-icon">✓</span><span>FIRE-PMIS centralizes schedules and makes due, overdue, and completed maintenance visible to authorized personnel.</span></div>
                 </div>
             </div>
         </section>
@@ -182,12 +173,12 @@
                     <p>From the apparatus bay to administrative oversight, every role sees the information needed to keep equipment ready.</p>
                 </div>
                 <div class="feature-grid">
-                    <article class="feature-card"><span class="feature-number">01</span><span class="feature-symbol">▤</span><h3>Equipment monitoring</h3><p>Track assets, condition, location, and complete service history in one registry.</p></article>
-                    <article class="feature-card"><span class="feature-number">02</span><span class="feature-symbol">✓</span><h3>Digital inspections</h3><p>Record standardized equipment checks, findings, and defects as they happen.</p></article>
-                    <article class="feature-card"><span class="feature-number">03</span><span class="feature-symbol">⌁</span><h3>ML risk prediction</h3><p>Surface potential risk using equipment telemetry and verified inspection records.</p></article>
-                    <article class="feature-card"><span class="feature-number">04</span><span class="feature-symbol">✦</span><h3>Maintenance coordination</h3><p>Plan, assign, and follow preventive and corrective maintenance work.</p></article>
-                    <article class="feature-card"><span class="feature-number">05</span><span class="feature-symbol">◷</span><h3>Readiness oversight</h3><p>Keep service status, inspections, and upcoming work visible to authorized staff.</p></article>
-                    <article class="feature-card"><span class="feature-number">06</span><span class="feature-symbol">▥</span><h3>Operational reporting</h3><p>Bring asset and maintenance information together for informed decisions.</p></article>
+                    <article class="feature-card"><span class="feature-number">01</span><span class="feature-symbol">▤</span><h3>Equipment registry</h3><p>Track equipment identity, category, location, condition, operational status, and service history.</p></article>
+                    <article class="feature-card"><span class="feature-number">02</span><span class="feature-symbol">◷</span><h3>Preventive maintenance schedules</h3><p>Plan maintenance dates, intervals, assigned personnel, instructions, and status in one place.</p></article>
+                    <article class="feature-card"><span class="feature-number">03</span><span class="feature-symbol">♧</span><h3>Due-date notifications</h3><p>Bring upcoming, due, and overdue maintenance tasks to personnel’s attention.</p></article>
+                    <article class="feature-card"><span class="feature-number">04</span><span class="feature-symbol">✓</span><h3>Inspection management</h3><p>Record equipment condition, safety findings, defects, and recommended actions.</p></article>
+                    <article class="feature-card"><span class="feature-number">05</span><span class="feature-symbol">✦</span><h3>Maintenance execution and history</h3><p>Assign work and keep findings, parts, completion details, and serviceability changes traceable.</p></article>
+                    <article class="feature-card"><span class="feature-number">06</span><span class="feature-symbol">▥</span><h3>Maintenance reporting</h3><p>Review operational activity and export equipment, inspection, and maintenance reports.</p></article>
                 </div>
             </div>
         </section>
@@ -197,14 +188,15 @@
                 <div class="process-heading">
                     <span class="eyebrow">From record to readiness</span>
                     <h2>A clear, accountable maintenance loop.</h2>
-                    <p>Decision support is provided while authorized BFP personnel remain in control at every step.</p>
+                    <p>A continuous, transparent workflow keeps schedules, findings, and completed work connected.</p>
                 </div>
                 <div class="process-steps">
-                    <div class="process-step"><span class="step-number">1</span><strong>Record</strong><span>Equipment data</span></div>
-                    <div class="process-step"><span class="step-number">2</span><strong>Inspect</strong><span>Condition check</span></div>
-                    <div class="process-step"><span class="step-number">3</span><strong>Predict</strong><span>Decision support</span></div>
-                    <div class="process-step"><span class="step-number">4</span><strong>Review</strong><span>Personnel oversight</span></div>
-                    <div class="process-step"><span class="step-number">5</span><strong>Maintain</strong><span>Verified action</span></div>
+                    <div class="process-step"><span class="step-number">1</span><strong>Register</strong><span>Equipment and service details</span></div>
+                    <div class="process-step"><span class="step-number">2</span><strong>Schedule</strong><span>Preventive maintenance</span></div>
+                    <div class="process-step"><span class="step-number">3</span><strong>Notify</strong><span>Upcoming and overdue dates</span></div>
+                    <div class="process-step"><span class="step-number">4</span><strong>Inspect</strong><span>Record condition and findings</span></div>
+                    <div class="process-step"><span class="step-number">5</span><strong>Maintain</strong><span>Perform assigned work</span></div>
+                    <div class="process-step"><span class="step-number">6</span><strong>Complete and report</strong><span>Update history and summaries</span></div>
                 </div>
             </div>
         </section>

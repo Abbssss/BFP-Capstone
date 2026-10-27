@@ -6,43 +6,6 @@
     <div class="ops-page">
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="ops-flash" role="alert">Please review the highlighted fields and try again.</div>@endif
-        @if($canManageEquipment)
-            <div class="ops-grid-2" style="margin-bottom:12px">
-                <section class="ops-card">
-                    <div class="ops-card-heading">Import equipment from CSV</div>
-                    <div class="ops-card-body">
-                        <p style="margin:0 0 10px;color:#718197;font-size:11px">Upload up to 500 equipment records using the CSV template. Every row is checked before any records are saved.</p>
-                        <form method="POST" action="{{ route('equipment.import') }}" enctype="multipart/form-data" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                            @csrf
-                            <input type="file" name="file" accept=".csv,text/csv" required aria-label="Equipment CSV file">
-                            <button type="submit" class="ops-button small">Import CSV</button>
-                            <a class="ops-button secondary small" href="{{ route('equipment.import-template') }}">Download template</a>
-                        </form>
-                        @foreach($errors->get('file') as $message)<p class="ops-error" role="alert">{{ $message }}</p>@endforeach
-                        @foreach($errors->getMessages() as $key => $messages)
-                            @if(str_starts_with($key, 'rows.'))
-                                @foreach($messages as $message)<p class="ops-error" role="alert">{{ $message }}</p>@endforeach
-                            @endif
-                        @endforeach
-                    </div>
-                </section>
-                @if(auth()->user()->role === 'super_admin')
-                    <section class="ops-card">
-                        <div class="ops-card-heading">Equipment categories</div>
-                        <div class="ops-card-body">
-                            <p style="margin:0 0 10px;color:#718197;font-size:11px">Add a category to make it available when registering or editing equipment.</p>
-                            <form method="POST" action="{{ route('equipment.categories.store') }}" style="display:flex;align-items:center;gap:8px">
-                                @csrf
-                                <input type="text" name="name" maxlength="100" class="ops-input" placeholder="New category name" value="{{ old('name') }}" required>
-                                <button type="submit" class="ops-button small">Add category</button>
-                            </form>
-                            @error('name')<p class="ops-error" role="alert">{{ $message }}</p>@enderror
-                            <div style="margin-top:10px;color:#718197;font-size:10px">Available categories: {{ $categories->implode(', ') }}</div>
-                        </div>
-                    </section>
-                @endif
-            </div>
-        @endif
         <section class="ops-card">
             <nav aria-label="Equipment sections" style="display:flex;gap:8px;padding:14px 16px 0">
                 <a class="ops-button {{ $isArchive ? 'secondary' : '' }}" href="{{ route('equipment.index', request()->only(['search', 'category'])) }}" @if(!$isArchive) aria-current="page" @endif>All equipment</a>
@@ -61,24 +24,26 @@
                         @foreach($categories as $category)<option value="{{ $category }}" @selected(request('category') === $category)>{{ $category }}</option>@endforeach
                     </select>
                     <button type="submit" class="ops-button secondary small">Filter</button>
+                    @if(request()->filled('search'))
+                        <a class="ops-button secondary small" href="{{ route('equipment.index', request()->except(['search', 'page'])) }}">Clear search</a>
+                    @endif
                 </div>
                 @if($canManageEquipment)
-                    <button type="button" class="ops-button small" data-modal-open="equipment-create-modal">＋ Add new</button>
+                    <div style="display:flex;gap:8px">
+                        <button type="button" class="ops-button secondary small" data-modal-open="equipment-bulk-upload-modal">Bulk upload</button>
+                        <button type="button" class="ops-button small" data-modal-open="equipment-create-modal">＋ Add new</button>
+                    </div>
                 @endif
             </form>
             <div class="ops-table-scroll">
                 <table class="ops-table">
-                    <thead><tr><th>Property no.</th><th>Equipment</th><th>Office Code</th><th>Category</th><th>Risk level</th><th>Location</th><th>Status</th><th>Assigned to</th><th>Last maintenance</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Property no.</th><th>Equipment</th><th>Office Code</th><th>Category</th><th>Priority</th><th>Location</th><th>Status</th><th>Assigned to</th><th>Last maintenance</th><th>Action</th></tr></thead>
                     <tbody>
                     @forelse($equipment as $item)
                         <tr>
                             <td>{{ $item->asset_code }}</td><td>{{ $item->equipment_name }}</td><td>{{ $item->office_code ?: '—' }}</td><td>{{ $item->category }}</td>
                             <td>
-                                @if($item->latestRiskPrediction)
-                                    <span class="ops-pill {{ $item->latestRiskPrediction->prediction_label === 'High Risk' ? 'danger' : ($item->latestRiskPrediction->prediction_label === 'Medium Risk' ? 'warning' : '') }}">{{ $item->latestRiskPrediction->prediction_label }}</span>
-                                @else
-                                    <span class="ops-pill neutral">Not assessed</span>
-                                @endif
+                                <span class="ops-pill {{ $item->maintenance_priority['priority'] === 'High' ? 'danger' : ($item->maintenance_priority['priority'] === 'Medium' ? 'warning' : '') }}" title="{{ $item->maintenance_priority['reason'] }}">{{ $item->maintenance_priority['priority'] }}</span>
                             </td>
                             <td>{{ $item->location ?: '—' }}</td>
                             <td><span class="ops-pill {{ str_contains(strtolower($item->status), 'out') || str_contains(strtolower($item->status), 'maintenance') ? 'warning' : '' }}">{{ $item->status }}</span></td>
@@ -101,6 +66,39 @@
             <div class="ops-table-footer"><span>Showing {{ $equipment->firstItem() ?? 0 }}–{{ $equipment->lastItem() ?? 0 }} of {{ $equipment->total() }} records</span><div class="ops-pagination">{{ $equipment->links() }}</div></div>
         </section>
     </div>
+    @if($canManageEquipment)
+        <dialog id="equipment-bulk-upload-modal" class="app-modal" aria-labelledby="equipment-bulk-upload-title"
+            data-open-on-load="{{ $errors->any() && old('_form') === 'bulk-upload-equipment' ? 'true' : 'false' }}">
+            <div class="app-modal-panel">
+                <header class="app-modal-header">
+                    <div><h2 id="equipment-bulk-upload-title">Bulk upload equipment</h2><p>Import up to 500 equipment records from a CSV file.</p></div>
+                    <button type="button" class="app-modal-close" aria-label="Close dialog" data-modal-close>&times;</button>
+                </header>
+                <div class="app-modal-body">
+                    <p style="margin:0 0 14px;color:#718197;font-size:12px">Every row is checked before any equipment is saved. Use the CSV template to see the required columns and supported categories.</p>
+                    <form method="POST" action="{{ route('equipment.import') }}" enctype="multipart/form-data">
+                        @csrf
+                        <input type="hidden" name="_form" value="bulk-upload-equipment">
+                        <div class="app-modal-field">
+                            <label for="equipment-bulk-upload-file">Equipment CSV file</label>
+                            <input id="equipment-bulk-upload-file" type="file" name="file" accept=".csv,text/csv" required>
+                            @foreach($errors->get('file') as $message)<span class="app-modal-error" role="alert">{{ $message }}</span>@endforeach
+                        </div>
+                        @foreach($errors->getMessages() as $key => $messages)
+                            @if(str_starts_with($key, 'rows.'))
+                                @foreach($messages as $message)<p class="ops-error" role="alert">{{ $message }}</p>@endforeach
+                            @endif
+                        @endforeach
+                        <footer class="app-modal-footer">
+                            <a class="app-modal-button" href="{{ route('equipment.import-template') }}">Download CSV template</a>
+                            <button type="button" class="app-modal-button" data-modal-close>Cancel</button>
+                            <button type="submit" class="app-modal-button primary">Upload CSV</button>
+                        </footer>
+                    </form>
+                </div>
+            </div>
+        </dialog>
+    @endif
     @foreach($equipment as $item)
         <dialog id="equipment-view-{{ $item->id }}" class="app-modal equipment-view-modal" aria-labelledby="equipment-view-title-{{ $item->id }}">
             <div class="app-modal-panel">
@@ -119,21 +117,14 @@
                         <div><dt>Serial number</dt><dd>{{ $item->serial_number ?: 'Not specified' }}</dd></div>
                         <div><dt>Manufacturer</dt><dd>{{ $item->manufacturer ?: 'Not specified' }}</dd></div>
                         <div><dt>Model</dt><dd>{{ $item->model ?: 'Not specified' }}</dd></div>
-                        <div><dt>Commission date</dt><dd>{{ $item->commission_date?->format('M d, Y') ?? 'Not specified' }}</dd></div>
-                        <div><dt>Service age</dt><dd>{{ $item->service_age_years ?? 0 }} years</dd></div>
-                        <div><dt>Last inspection</dt><dd>{{ $item->last_inspection_date?->format('M d, Y') ?? 'Not recorded' }}</dd></div>
-                        <div><dt>Next inspection</dt><dd>{{ $item->next_inspection_date?->format('M d, Y') ?? 'Not scheduled' }}</dd></div>
-                        <div><dt>Last maintenance</dt><dd>{{ $item->last_maintenance_date?->format('M d, Y') ?? 'Not recorded' }}</dd></div>
-                        <div><dt>Maintenance interval</dt><dd>{{ $item->maintenance_interval_days ? $item->maintenance_interval_days.' days' : 'Not specified' }}</dd></div>
-                        <div><dt>Engine hours</dt><dd>{{ $item->engine_operating_hours ?? 'Not recorded' }}</dd></div>
-                        <div><dt>Runtime cycles</dt><dd>{{ $item->runtime_cycles ?? 'Not recorded' }}</dd></div>
-                        <div><dt>Mechanical failures</dt><dd>{{ $item->mechanical_failure_count ?? 0 }}</dd></div>
-                        <div><dt>Last inspection outcome</dt><dd>{{ $item->last_inspection_outcome ?: 'Not recorded' }}</dd></div>
-                        <div class="equipment-detail-full"><dt>Description</dt><dd>{{ $item->description ?: 'No description.' }}</dd></div>
+                        <div><dt>Date Acquired</dt><dd>{{ $item->commission_date?->format('M d, Y') ?? 'Not specified' }}</dd></div>
                         <div class="equipment-detail-full"><dt>Remarks</dt><dd>{{ $item->remarks ?: 'No remarks.' }}</dd></div>
                     </dl>
                 </div>
-                <footer class="app-modal-footer"><button type="button" class="app-modal-button" data-modal-close>Close</button></footer>
+                <footer class="app-modal-footer">
+                    <a class="app-modal-button primary" href="{{ route('equipment.records', $item) }}">View all records</a>
+                    <button type="button" class="app-modal-button" data-modal-close>Close</button>
+                </footer>
             </div>
         </dialog>
 
@@ -176,19 +167,6 @@
                                 @error('office_code') @if(old('_equipment_id') == $item->id)<span class="app-modal-error">{{ $message }}</span>@endif @enderror
                             </div>
                             <div class="app-modal-field">
-                                <label for="edit-status-{{ $item->id }}">Status</label>
-                                <select id="edit-status-{{ $item->id }}" name="status" required>
-                                    @foreach(['Operational','Operational with Restrictions','Under Inspection','Under Maintenance','Under Repair','Out of Service','Retired'] as $status)
-                                        <option value="{{ $status }}" @selected((old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('status', $item->status) : $item->status) === $status)>{{ $status }}</option>
-                                    @endforeach
-                                </select>
-                                @error('status') @if(old('_equipment_id') == $item->id)<span class="app-modal-error">{{ $message }}</span>@endif @enderror
-                            </div>
-                            <div class="app-modal-field">
-                                <label for="edit-location-{{ $item->id }}">Location</label>
-                                <input id="edit-location-{{ $item->id }}" name="location" value="{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('location', $item->location) : $item->location }}">
-                            </div>
-                            <div class="app-modal-field">
                                 <label for="edit-asset-tag-{{ $item->id }}">Asset tag</label>
                                 <input id="edit-asset-tag-{{ $item->id }}" name="asset_tag" value="{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('asset_tag', $item->asset_tag) : $item->asset_tag }}">
                                 @error('asset_tag') @if(old('_equipment_id') == $item->id)<span class="app-modal-error">{{ $message }}</span>@endif @enderror
@@ -207,31 +185,33 @@
                                 <input id="edit-model-{{ $item->id }}" name="model" value="{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('model', $item->model) : $item->model }}">
                             </div>
                             <div class="app-modal-field">
-                                <label for="edit-commission-date-{{ $item->id }}">Commission date</label>
-                                <input id="edit-commission-date-{{ $item->id }}" type="date" name="commission_date" value="{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('commission_date', $item->commission_date?->format('Y-m-d')) : $item->commission_date?->format('Y-m-d') }}">
-                            </div>
-                            @endif
-                            <div class="app-modal-field">
-                                <label for="edit-assigned-{{ $item->id }}">Assigned personnel</label>
-                                @if($canManageEquipment)
-                                <select id="edit-assigned-{{ $item->id }}" name="assigned_personnel" data-equipment-personnel-select>
-                                    <option value="">Unassigned</option>
-                                    @foreach($users as $user)
-                                        <option value="{{ $user->id }}" data-office-code="{{ $user->office_code }}" @selected((old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('assigned_personnel', $item->assigned_personnel) : $item->assigned_personnel) == $user->id)>{{ $user->name }}</option>
+                                <label for="edit-status-{{ $item->id }}">Status</label>
+                                <select id="edit-status-{{ $item->id }}" name="status" required>
+                                    @foreach(['Operational','Operational with Restrictions','Under Inspection','Under Maintenance','Under Repair','Out of Service','Retired'] as $status)
+                                        <option value="{{ $status }}" @selected((old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('status', $item->status) : $item->status) === $status)>{{ $status }}</option>
                                     @endforeach
                                 </select>
-                                @else
-                                    <input id="edit-assigned-{{ $item->id }}" value="{{ $item->assignedUser?->name ?? 'Unassigned' }}" disabled>
-                                @endif
-                                <small>{{ $canManageEquipment ? 'Select a person to automatically set the equipment office code.' : 'Personnel assignment can only be changed by an administrator.' }}</small>
-                                @if($canManageEquipment)
-                                    @error('assigned_personnel') @if(old('_equipment_id') == $item->id)<span class="app-modal-error">{{ $message }}</span>@endif @enderror
-                                @endif
+                                @error('status') @if(old('_equipment_id') == $item->id)<span class="app-modal-error">{{ $message }}</span>@endif @enderror
                             </div>
-                            <div class="app-modal-field"><label for="edit-service-age-{{ $item->id }}">Service age (years)</label><input id="edit-service-age-{{ $item->id }}" type="number" min="0" name="service_age_years" value="{{ $item->service_age_years }}"></div>
-                            <div class="app-modal-field"><label for="edit-engine-hours-{{ $item->id }}">Engine operating hours</label><input id="edit-engine-hours-{{ $item->id }}" type="number" min="0" name="engine_operating_hours" value="{{ $item->engine_operating_hours }}"></div>
-                            <div class="app-modal-field"><label for="edit-runtime-cycles-{{ $item->id }}">Runtime cycles</label><input id="edit-runtime-cycles-{{ $item->id }}" type="number" min="0" name="runtime_cycles" value="{{ $item->runtime_cycles }}"></div>
-                            <div class="app-modal-field"><label for="edit-failures-{{ $item->id }}">Mechanical failure count</label><input id="edit-failures-{{ $item->id }}" type="number" min="0" name="mechanical_failure_count" value="{{ $item->mechanical_failure_count }}"></div>
+                            <div class="app-modal-field">
+                                <label for="edit-location-{{ $item->id }}">Location</label>
+                                <input id="edit-location-{{ $item->id }}" name="location" value="{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('location', $item->location) : $item->location }}">
+                            </div>
+                            <div class="app-modal-field">
+                                <label for="edit-commission-date-{{ $item->id }}">Date Acquired</label>
+                                <input id="edit-commission-date-{{ $item->id }}" type="date" name="commission_date" value="{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('commission_date', $item->commission_date?->format('Y-m-d')) : $item->commission_date?->format('Y-m-d') }}">
+                            </div>
+                            <div class="app-modal-field full-width">
+                                <label for="edit-description-{{ $item->id }}">Description</label>
+                                <textarea id="edit-description-{{ $item->id }}" name="description">{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('description', $item->description) : $item->description }}</textarea>
+                            </div>
+                            @endif
+                            @unless($canManageEquipment)
+                            <div class="app-modal-field">
+                                <label for="edit-assigned-{{ $item->id }}">Assigned personnel</label>
+                                <input id="edit-assigned-{{ $item->id }}" value="{{ $item->assignedUser?->name ?? 'Unassigned' }}" disabled>
+                                <small>Personnel assignment can only be changed by an administrator.</small>
+                            </div>
                             <div class="app-modal-field"><label for="edit-last-inspection-{{ $item->id }}">Last inspection date</label><input id="edit-last-inspection-{{ $item->id }}" type="date" name="last_inspection_date" value="{{ $item->last_inspection_date?->format('Y-m-d') }}"></div>
                             <div class="app-modal-field"><label for="edit-next-inspection-{{ $item->id }}">Next inspection date</label><input id="edit-next-inspection-{{ $item->id }}" type="date" name="next_inspection_date" value="{{ $item->next_inspection_date?->format('Y-m-d') }}"></div>
                             <div class="app-modal-field"><label for="edit-last-maintenance-{{ $item->id }}">Last maintenance date</label><input id="edit-last-maintenance-{{ $item->id }}" type="date" name="last_maintenance_date" value="{{ $item->last_maintenance_date?->format('Y-m-d') }}"></div>
@@ -239,6 +219,7 @@
                             <div class="app-modal-field"><label for="edit-inspection-outcome-{{ $item->id }}">Last inspection outcome</label><input id="edit-inspection-outcome-{{ $item->id }}" name="last_inspection_outcome" value="{{ $item->last_inspection_outcome }}"></div>
                             <div class="app-modal-field full-width"><label for="edit-description-{{ $item->id }}">Description</label><textarea id="edit-description-{{ $item->id }}" name="description">{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('description', $item->description) : $item->description }}</textarea></div>
                             <div class="app-modal-field full-width"><label for="edit-remarks-{{ $item->id }}">Remarks</label><textarea id="edit-remarks-{{ $item->id }}" name="remarks">{{ old('_equipment_id') == $item->id && old('_form') === 'edit-equipment' ? old('remarks', $item->remarks) : $item->remarks }}</textarea></div>
+                            @endunless
                         </div>
                         <footer class="app-modal-footer">
                             <button type="button" class="app-modal-button" data-modal-close>Cancel</button>
@@ -319,21 +300,23 @@
                         </div>
                         <div class="app-modal-field">
                             <label for="equipment-asset-tag">Asset tag</label>
-                            <input id="equipment-asset-tag" name="asset_tag" value="{{ old('asset_tag') }}">
+                            <input id="equipment-asset-tag" name="asset_tag" value="{{ old('asset_tag') }}" required>
                             @error('asset_tag')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">
                             <label for="equipment-serial">Serial number</label>
-                            <input id="equipment-serial" name="serial_number" value="{{ old('serial_number') }}">
+                            <input id="equipment-serial" name="serial_number" value="{{ old('serial_number') }}" required>
                             @error('serial_number')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">
                             <label for="equipment-manufacturer">Manufacturer</label>
-                            <input id="equipment-manufacturer" name="manufacturer" value="{{ old('manufacturer') }}">
+                            <input id="equipment-manufacturer" name="manufacturer" value="{{ old('manufacturer') }}" required>
+                            @error('manufacturer')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">
                             <label for="equipment-model">Model</label>
-                            <input id="equipment-model" name="model" value="{{ old('model') }}">
+                            <input id="equipment-model" name="model" value="{{ old('model') }}" required>
+                            @error('model')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">
                             <label for="equipment-status">Status</label>
@@ -346,22 +329,13 @@
                         </div>
                         <div class="app-modal-field">
                             <label for="equipment-location">Location</label>
-                            <input id="equipment-location" name="location" value="{{ old('location') }}">
+                            <input id="equipment-location" name="location" value="{{ old('location') }}" required>
+                            @error('location')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field">
-                            <label for="equipment-commission-date">Commission date</label>
-                            <input id="equipment-commission-date" type="date" name="commission_date" value="{{ old('commission_date') }}">
-                        </div>
-                        <div class="app-modal-field">
-                            <label for="equipment-assigned">Assigned personnel</label>
-                            <select id="equipment-assigned" name="assigned_personnel" data-equipment-personnel-select>
-                                <option value="">Unassigned</option>
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}" data-office-code="{{ $user->office_code }}" @selected(old('assigned_personnel') == $user->id)>{{ $user->name }}</option>
-                                @endforeach
-                            </select>
-                            <small>Select a person to automatically set the equipment office code.</small>
-                            @error('assigned_personnel')<span class="app-modal-error">{{ $message }}</span>@enderror
+                            <label for="equipment-commission-date">Date Acquired</label>
+                            <input id="equipment-commission-date" type="date" name="commission_date" value="{{ old('commission_date') }}" required>
+                            @error('commission_date')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field full-width">
                             <label for="equipment-description">Description</label>

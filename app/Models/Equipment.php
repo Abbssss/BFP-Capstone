@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Equipment extends Model
 {
+    public const CATEGORIES = ['Mechanical', 'Non Mechanical'];
+
     protected $table = 'equipment';
 
     protected $fillable = [
@@ -36,6 +38,11 @@ class Equipment extends Model
         return $this->hasMany(Inspection::class, 'equipment_id');
     }
 
+    public function latestInspection(): HasOne
+    {
+        return $this->hasOne(Inspection::class, 'equipment_id')->latestOfMany('inspection_date');
+    }
+
     public function maintenances(): HasMany
     {
         return $this->hasMany(Maintenance::class, 'equipment_id');
@@ -46,8 +53,4 @@ class Equipment extends Model
         return $this->belongsTo(User::class, 'assigned_personnel');
     }
 
-    public function latestRiskPrediction(): HasOne
-    {
-        return $this->hasOne(RiskPrediction::class)->latestOfMany('prediction_timestamp');
-    }
 }

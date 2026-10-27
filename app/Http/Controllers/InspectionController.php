@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Equipment;
 use App\Models\EquipmentStatusHistory;
 use App\Models\Inspection;
+use App\Services\EquipmentPriorityService;
+use App\Services\RecordReferenceNumberService;
 use App\Support\OfficeScope;
+use App\Support\SearchQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,27 +17,47 @@ use Illuminate\View\View;
 
 class InspectionController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, EquipmentPriorityService $priorities): View
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', 'string', 'max:100'],
         ]);
-        $inspections = OfficeScope::records(Inspection::query())->with('equipment')
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('reference_number', 'like', '%'.$search.'%')
-                        ->orWhere('inspector_name', 'like', '%'.$search.'%')
-                        ->orWhere('inspection_type', 'like', '%'.$search.'%')
-                        ->orWhereHas('equipment', fn ($equipmentQuery) => $equipmentQuery->where('equipment_name', 'like', '%'.$search.'%'));
-                });
-            })
+        $inspectionQuery = OfficeScope::records(Inspection::query())->with([
+            'equipment.latestInspection',
+            'equipment.maintenances',
+        ])
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('outcome', $status))
-            ->when($filters['category'] ?? null, fn ($query, $type) => $query->where('inspection_type', $type))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+            ->when($filters['category'] ?? null, fn ($query, $type) => $query->where('inspection_type', $type));
+        SearchQuery::apply($inspectionQuery, $filters['search'] ?? null, [
+            'reference_number', 'inspector_name', 'inspection_type', 'outcome', 'condition_observed',
+            'functional_test_result', 'defects_identified', 'safety_concerns', 'recommended_action', 'notes',
+        ], ['equipment' => ['equipment_name', 'asset_code', 'asset_tag', 'category']]);
+        $inspections = $inspectionQuery->latest()->paginate(10)->withQueryString();
+        $inspections->getCollection()->each(function (Inspection $inspection) use ($priorities): void {
+            $inspection->setAttribute(
+                'equipment_priority',
+                $inspection->assigned_to_id
+                    ? $inspection->priority
+                    : ($inspection->equipment ? $priorities->assess($inspection->equipment)['priority'] : null)
+            );
+        });
+        $priorityInspectionSchedule = OfficeScope::equipment(Equipment::query())->with([
+            'assignedUser',
+            'latestInspection',
+            'maintenances',
+        ])
+            ->whereNotIn('status', ['Retired'])
+            ->get()
+            ->map(fn (Equipment $item): array => [
+                'equipment' => $item,
+                'priority' => $priorities->assess($item)['priority'],
+                'date' => $priorities->nextInspectionDate($item),
+            ])
+            ->filter(fn (array $record): bool => $record['priority'] === 'High' && $record['date'] !== null)
+            ->sortBy('date')
+            ->values();
         $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
         $equipmentUnderInspection = OfficeScope::equipment(Equipment::query())->with('assignedUser')
             ->where('status', 'Under Inspection')
@@ -43,7 +66,14 @@ class InspectionController extends Controller
         $outcomes = OfficeScope::records(Inspection::query())->select('outcome')->whereNotNull('outcome')->distinct()->orderBy('outcome')->pluck('outcome');
         $types = OfficeScope::records(Inspection::query())->select('inspection_type')->whereNotNull('inspection_type')->distinct()->orderBy('inspection_type')->pluck('inspection_type');
 
-        return view('inspections.index', compact('inspections', 'equipmentOptions', 'equipmentUnderInspection', 'outcomes', 'types'));
+        return view('inspections.index', compact(
+            'inspections',
+            'equipmentOptions',
+            'equipmentUnderInspection',
+            'priorityInspectionSchedule',
+            'outcomes',
+            'types'
+        ));
     }
 
     public function create(): View
@@ -53,11 +83,10 @@ class InspectionController extends Controller
         return view('inspections.create', compact('equipment'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, RecordReferenceNumberService $references): RedirectResponse
     {
         $validated = $request->validate([
             'equipment_id' => ['required', OfficeScope::equipmentExistsRule()],
-            'reference_number' => ['required', 'string', 'unique:inspections,reference_number'],
             'inspection_date' => ['required', 'date'],
             'inspector_name' => ['required', 'string'],
             'inspection_type' => ['required', 'string'],
@@ -73,7 +102,7 @@ class InspectionController extends Controller
             'equipment_status' => ['required_if:_form,complete-equipment-inspection', 'nullable', 'in:Operational,Operational with Restrictions,Under Maintenance,Under Repair,Out of Service,Retired'],
         ]);
 
-        DB::transaction(function () use ($validated, $request): void {
+        DB::transaction(function () use ($validated, $request, $references): void {
             $equipment = OfficeScope::equipment(Equipment::query())
                 ->lockForUpdate()
                 ->findOrFail($validated['equipment_id']);
@@ -85,9 +114,15 @@ class InspectionController extends Controller
                 ]);
             }
 
-            $inspection = Inspection::create(collect($validated)->except([
+            $inspectionData = collect($validated)->except([
                 '_form', '_equipment_id', 'equipment_status',
-            ])->all());
+            ])->all();
+            $inspectionData['reference_number'] = $references->nextFor($equipment);
+            $inspectionData['approval_status'] = $request->user()->role === 'maintenance'
+                || $inspectionData['outcome'] === 'Requires Further Assessment'
+                ? 'Pending'
+                : 'Not Required';
+            $inspection = Inspection::create($inspectionData);
 
             $equipment->last_inspection_date = $inspection->inspection_date;
             $equipment->last_inspection_outcome = $inspection->outcome;
@@ -123,6 +158,26 @@ class InspectionController extends Controller
         return view('inspections.show', compact('inspection'));
     }
 
+    public function updatePendingStatus(Request $request, string $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'in:In Progress,Completed,Cancelled'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+        if ($validated['status'] === 'Completed') {
+            $validated['approval_status'] = 'Pending';
+            $validated['reviewed_by_id'] = null;
+            $validated['reviewed_at'] = null;
+            $validated['approval_notes'] = null;
+        }
+        $inspection = OfficeScope::records(Inspection::query())
+            ->whereIn('status', ['Pending', 'In Progress'])
+            ->findOrFail($id);
+        $inspection->update($validated);
+
+        return redirect()->route('inspections.index')->with('success', 'Inspection status updated successfully.');
+    }
+
     public function edit(string $id): View
     {
         $inspection = OfficeScope::records(Inspection::query())->findOrFail($id);
@@ -148,6 +203,13 @@ class InspectionController extends Controller
             'notes' => ['nullable', 'string'],
             'outcome' => ['required', 'in:Passed,Passed with Findings,Failed,Requires Further Assessment'],
         ]);
+
+        if ($request->user()->role === 'maintenance' || $validated['outcome'] === 'Requires Further Assessment') {
+            $validated['approval_status'] = 'Pending';
+            $validated['reviewed_by_id'] = null;
+            $validated['reviewed_at'] = null;
+            $validated['approval_notes'] = null;
+        }
 
         $previousEquipmentId = $inspection->equipment_id;
         $inspection->update($validated);

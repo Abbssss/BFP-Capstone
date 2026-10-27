@@ -11,16 +11,18 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Equipment</label>
-                            <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
-                                @foreach($equipment as $item)
-                                    <option value="{{ $item->id }}">{{ $item->equipment_name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="equipment-select-search-wrapper" data-equipment-select-search-wrapper>
+                                <input type="search" aria-label="Search and select equipment" placeholder="Select or search equipment..." data-equipment-select-search hidden>
+                                <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-searchable-equipment>
+                                    <option value="">Select equipment</option>
+                                    @foreach($equipment as $item)
+                                        <option value="{{ $item->id }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
+                                    @endforeach
+                                </select>
+                                <small data-equipment-select-empty hidden>No equipment matches your search.</small>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Reference Number</label>
-                            <input type="text" name="reference_number" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
-                        </div>
+                        <div><label class="block text-sm font-medium text-gray-700">Reference Number</label><p>Generated when saved: first 3 equipment-name letters-MM-DD-YYYY-sequence.</p></div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Inspection Date</label>
                             <input type="datetime-local" name="inspection_date" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>

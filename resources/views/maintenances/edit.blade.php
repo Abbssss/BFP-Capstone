@@ -13,11 +13,16 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Equipment</label>
-                            <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-assignee-equipment-select>
-                                @foreach($equipment as $item)
-                                    <option value="{{ $item->id }}" data-assigned-personnel-id="{{ $item->assigned_personnel }}" data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}" @selected(old('equipment_id', $maintenance->equipment_id) == $item->id)>{{ $item->equipment_name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="equipment-select-search-wrapper" data-equipment-select-search-wrapper>
+                                <input type="search" aria-label="Search and select equipment" placeholder="Select or search equipment..." data-equipment-select-search hidden>
+                                <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-assignee-equipment-select data-searchable-equipment>
+                                    <option value="">Select equipment</option>
+                                    @foreach($equipment as $item)
+                                        <option value="{{ $item->id }}" data-assigned-personnel-id="{{ $item->assigned_personnel }}" data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}" @selected(old('equipment_id', $maintenance->equipment_id) == $item->id)>{{ $item->equipment_name }}</option>
+                                    @endforeach
+                                </select>
+                                <small data-equipment-select-empty hidden>No equipment matches your search.</small>
+                            </div>
                         </div>
                         <div data-equipment-assignee-field hidden>
                             <label class="block text-sm font-medium text-gray-700" for="maintenance-assigned-to">Who will do the job?</label>

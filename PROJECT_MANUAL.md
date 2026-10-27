@@ -2,7 +2,7 @@
 
 ## 1. System overview
 
-FIRE-PMIS is a web-based fire equipment and maintenance management system for tracking station assets, inspections, maintenance work, repairs, personnel assignments, risk predictions, and reporting.
+FIRE-PMIS is a web-based centralized preventive maintenance scheduling and equipment priority system for tracking station assets, maintenance schedules, inspections, maintenance work, repairs, personnel assignments, and reporting.
 
 The application is built with Laravel and follows a role-based access model. It supports:
 
@@ -37,7 +37,7 @@ Important behavior:
 | Inspections | Yes | Yes | Yes |
 | Maintenance tasks | Yes | Yes | Yes |
 | Repairs | Yes | Yes | Yes |
-| Predictions | Yes | Yes | Yes |
+| Equipment priority | Yes | Yes | Yes |
 | Schedule | Yes | Yes | Yes |
 | Personnel | Yes | Yes | Yes |
 | Defect Reports | Yes | Yes | Yes |
@@ -55,8 +55,8 @@ Important behavior:
 The dashboard is the main landing screen after login.
 
 - Super admin dashboard: system-level overview with counts for users, equipment, inspections, maintenance, and completed tasks.
-- Admin dashboard: operational overview for equipment readiness, maintenance, overdue work, inspections due, and risk counts.
-- Maintenance dashboard: staff-specific tasks, work progress, completed work, overdue work, assigned equipment risks, and upcoming maintenance.
+- Admin dashboard: operational overview for equipment readiness, maintenance, overdue work, inspections due, and schedule-based equipment priorities.
+- Maintenance dashboard: staff-specific tasks, work progress, completed work, overdue work, assigned equipment priorities, and upcoming maintenance.
 
 Dashboard indicators include:
 
@@ -64,7 +64,7 @@ Dashboard indicators include:
 - overdue maintenance
 - due inspections
 - repair counts
-- high-risk prediction counts
+- high-, medium-, and low-priority equipment counts
 - completion and readiness metrics
 
 ### 3.2 Equipment records
@@ -84,7 +84,7 @@ Fields commonly tracked include:
 
 Equipment records can be viewed, created, edited, and deleted by authorized users. Deleting an equipment record also removes linked inspection and maintenance history.
 
-The equipment table displays each asset's latest risk classification. Super admins can add equipment categories, which then become available in equipment forms. Authorized equipment users can bulk import records from CSV using the downloadable template; imports support up to 500 records and are validated as a complete file before anything is saved.
+The equipment table displays each asset's schedule- and inspection-based maintenance priority. Super admins can add equipment categories, which then become available in equipment forms. Authorized equipment users can bulk import records from CSV using the downloadable template; imports support up to 500 records and are validated as a complete file before anything is saved.
 
 Equipment with an `Out of Service` or `Retired` status is kept in the equipment module's Archive section and is excluded from the All equipment list. The archive is office-scoped like the rest of the equipment module.
 
@@ -159,19 +159,11 @@ It highlights:
 - date
 - outcome
 
-### 3.8 Risk prediction
+### 3.8 Equipment priority
 
-The system includes a prediction feature for equipment risk classification.
+Equipment priority is a transparent operational classification based on saved maintenance dates, interval data, inspection findings, and equipment status. Unsafe or out-of-service equipment is not considered safe because of a low schedule-based priority.
 
-It tracks:
-
-- equipment code
-- prediction label
-- confidence score
-- prediction timestamp
-- model version / training metadata
-
-This supports proactive maintenance decisions based on historical inspection and asset data.
+The warning period and critical-overdue threshold are configurable with `MAINTENANCE_PRIORITY_WARNING_DAYS` and `MAINTENANCE_PRIORITY_CRITICAL_OVERDUE_DAYS`.
 
 ### 3.9 Reports
 
@@ -183,7 +175,7 @@ Available reports include:
 - equipment registry
 - maintenance summary
 - inspection summary
-- risk predictions
+- equipment priority (displayed with equipment records)
 - audit activity
 
 Supported exports:
@@ -237,7 +229,7 @@ This helps keep each office from viewing or editing another office's records.
 5. Create Maintenance Tasks or Repairs when work is required.
 6. Use the Schedule to prioritize task dates and inspection follow-ups.
 7. Review Defect Reports for unresolved issues.
-8. Use Predictions to identify high-risk assets.
+8. Review equipment priorities and due dates to direct maintenance work.
 9. Export reports when needed for review or management approval.
 
 ### 5.3 Typical maintenance process
@@ -292,11 +284,8 @@ flowchart TD
     H --> J[Maintenance tasks]
     J --> K[Repair work]
     J --> L[Schedule]
-    G --> M[Risk prediction]
-
     J --> N[Reports and exports]
     L --> N
-    M --> N
     H --> N
 
     F --> O[System access control]
@@ -313,7 +302,7 @@ At a high level, the system follows this sequence:
 3. Data is filtered to the current office unless the user is a super admin.
 4. Equipment records are created or updated.
 5. Inspections and maintenance actions reference equipment records.
-6. Risk predictions are generated or reviewed against equipment history.
+6. Equipment priority is calculated from schedule dates, documented inspection findings, and status.
 7. Reports summarize operational data across time periods and groupings.
 
 ## 8. Operational best practices
@@ -323,7 +312,7 @@ At a high level, the system follows this sequence:
 - Update maintenance status as soon as work begins and ends.
 - Use the schedule page to control backlog and avoid missed follow-ups.
 - Ensure each user has a valid office code.
-- Use reports to review overdue and high-risk assets regularly.
+- Use reports to review overdue and high-priority assets regularly.
 
 ## 9. Notes and limitations
 
@@ -342,7 +331,7 @@ At a high level, the system follows this sequence:
 | See upcoming dates | Schedule |
 | Review users | Personnel |
 | View defects | Defect Reports |
-| Review predictive risk | Risk |
+| Review equipment priority | Equipment |
 | Export reports | Reports |
 | Manage access | Roles & Permissions |
 
@@ -354,6 +343,6 @@ For production use, keep the following in mind:
 - review role permissions after onboarding or role changes
 - monitor due inspections and overdue maintenance weekly
 - review reports for asset readiness and defect trends
-- ensure the risk model and predictions are retrained as needed
+- configure maintenance priority warning and critical-overdue thresholds for local policy
 
 This system manual provides a practical guide to the main operational flow and user responsibilities within FIRE-PMIS.

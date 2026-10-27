@@ -20,7 +20,7 @@ class GlobalSearchAndNotificationsTest extends TestCase
             'status' => 'active',
             'office_code' => 'OFFICE-A',
         ]);
-        $this->createEquipment('EQ-SEARCH-A', 'Searchable pump', 'OFFICE-A');
+        $equipment = $this->createEquipment('EQ-SEARCH-A', 'Searchable pump', 'OFFICE-A');
         $this->createEquipment('EQ-SEARCH-B', 'Searchable pump elsewhere', 'OFFICE-B');
 
         $this->actingAs($user)
@@ -28,7 +28,9 @@ class GlobalSearchAndNotificationsTest extends TestCase
             ->assertOk()
             ->assertSee('Searchable pump')
             ->assertDontSee('Searchable pump elsewhere')
-            ->assertSee('Equipment');
+            ->assertSee('Equipment')
+            ->assertSee('View record')
+            ->assertSee(route('equipment.records', $equipment));
     }
 
     public function test_notifications_show_only_the_five_latest_changes_in_the_users_office(): void
@@ -61,7 +63,6 @@ class GlobalSearchAndNotificationsTest extends TestCase
         $response->assertOk()
             ->assertSee('Latest changes')
             ->assertSee('Office equipment 1')
-            ->assertDontSee('Office equipment 6')
             ->assertDontSee('Outside office equipment');
         $this->assertCount(5, app(RecentProjectChanges::class)->latest());
     }

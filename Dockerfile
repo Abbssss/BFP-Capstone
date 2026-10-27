@@ -9,17 +9,12 @@ RUN npm run build
 FROM php:8.3-apache
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-ENV PYTHON_BINARY=/opt/venv/bin/python
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libonig-dev \
         libpq-dev \
         libxml2-dev \
         libzip-dev \
-        libgomp1 \
-        python3 \
-        python3-venv \
         unzip \
     && docker-php-ext-install mbstring pdo_pgsql xml zip \
     && a2enmod rewrite \
@@ -37,10 +32,7 @@ RUN composer install \
         --no-progress \
         --prefer-dist \
         --optimize-autoloader \
-    && python3 -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir -r python/requirements.txt \
     && mkdir -p \
-        storage/app/ml \
         storage/app/private \
         storage/app/public \
         storage/framework/cache/data \

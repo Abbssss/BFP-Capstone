@@ -19,7 +19,6 @@
                     request()->routeIs('inspections.*') => 'Inspections',
                     request()->routeIs('maintenances.*') => 'Maintenance',
                     request()->routeIs('repairs.*') => 'Repairs',
-                    request()->routeIs('risk.*') => 'Predictions',
                     request()->routeIs('schedule.*') => 'Schedule',
                     request()->routeIs('personnel.*') => 'Personnel',
                     request()->routeIs('defects.*') => 'Defect Reports',

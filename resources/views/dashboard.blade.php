@@ -30,7 +30,7 @@
                 <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Operational Status</h3>
                     <ul class="space-y-2">
-                        @foreach($riskSummary as $status => $total)
+                        @foreach($equipmentStatusSummary as $status => $total)
                             <li class="flex justify-between">
                                 <span>{{ $status }}</span>
                                 <span class="font-semibold">{{ $total }}</span>
@@ -45,7 +45,6 @@
                         <a href="{{ route('equipment.index') }}" class="block rounded bg-blue-600 px-4 py-2 text-white text-center">Manage Assets</a>
                         <a href="{{ route('inspections.index') }}" class="block rounded bg-indigo-600 px-4 py-2 text-white text-center">Inspection Records</a>
                         <a href="{{ route('maintenances.index') }}" class="block rounded bg-emerald-600 px-4 py-2 text-white text-center">Maintenance Tasks</a>
-                        <a href="{{ route('risk.index') }}" class="block rounded bg-amber-500 px-4 py-2 text-white text-center">Risk Classification</a>
                     </div>
                 </div>
             </div>

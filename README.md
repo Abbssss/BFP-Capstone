@@ -60,7 +60,7 @@ The Blueprint explicitly sets the Docker start command to `/usr/local/bin/render
 
 The Laravel app uses the Render PostgreSQL database and Eloquent; it does not use Firebase Data Connect. The Firebase Data Connect schema is a separate setup and is not required for this deployment. Render free PostgreSQL databases expire after 30 days, so do not use the free database for important long-term data.
 
-The web service's local filesystem (including uploaded documents and trained risk models) is not durable across restarts or deploys. Do not rely on local storage for important files; configure persistent or object storage for production.
+The web service's local filesystem (including uploaded documents) is not durable across restarts or deploys. Do not rely on local storage for important files; configure persistent or object storage for production.
 
 ## Firebase Data Connect schema
 

@@ -42,12 +42,14 @@
         .welcome-row p { margin: 0; color: #78879a; font-size: 10px; }
         .primary-button { display: inline-flex; min-height: 35px; align-items: center; gap: 8px; border-radius: 5px; padding: 0 15px; background: #bd1f24; box-shadow: 0 4px 9px rgba(128,22,27,.15); color: #fff; font-size: 10px; font-weight: 700; }
         .primary-button:hover { background: #a9191e; }
-        .metrics { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 9px; margin-bottom: 13px; }
-        .metric { display: flex; min-height: 71px; align-items: flex-start; gap: 9px; border: 1px solid #dfe4eb; border-left: 3px solid var(--accent); border-radius: 7px; padding: 11px 9px; background: #fff; }
-        .metric-icon { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border-radius: 5px; background: var(--tint); color: var(--accent); font-size: 12px; }
-        .metric-label { color: #78869a; font-size: 8px; font-weight: 600; }
-        .metric-value { margin-top: 2px; color: #122b4c; font-size: 19px; font-weight: 700; line-height: 1; }
-        .metric-note { margin-top: 4px; color: #9aa6b5; font-size: 7px; }
+        .metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+        .metric { display: grid; grid-template-columns: 42px minmax(0,1fr); min-height: 108px; align-items: center; gap: 12px; border: 1px solid #dfe4eb; border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px; background: #fff; box-shadow: 0 3px 10px rgba(20,43,76,.04); color: inherit; font-family: inherit; text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+        .metric:hover { border-color: var(--accent); box-shadow: 0 8px 18px rgba(20,43,76,.09); transform: translateY(-2px); }
+        .metric:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 24%, transparent); outline-offset: 3px; }
+        .metric-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 8px; background: var(--tint); color: var(--accent); font-size: 18px; }
+        .metric-label { display: block; color: #667991; font-size: 12px; font-weight: 700; line-height: 1.2; }
+        .metric-value { display: block; margin-top: 5px; color: #122b4c; font-size: 30px; font-weight: 800; line-height: 1; }
+        .metric-note { display: block; margin-top: 7px; color: #8795a7; font-size: 10px; line-height: 1.25; }
         .panel-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
         .panel { min-width: 0; overflow: hidden; border: 1px solid #dfe4eb; border-radius: 7px; background: #fff; }
         .panel-heading { display: flex; min-height: 38px; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e9ef; padding: 0 13px; color: #1b3555; font-size: 10px; font-weight: 500; }
@@ -65,9 +67,9 @@
         .service-stats strong { color: #16304f; }
         .panel-link { display: inline-block; margin-top: 7px; color: #b81f24; font-size: 8px; font-weight: 700; }
         .lower-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .risk-level-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 10px; }
-        .risk-level-count { display: flex; align-items: center; justify-content: space-between; border-radius: 4px; padding: 9px 10px; background: #f5f6f8; color: #607188; font-size: 8px; }
-        .risk-level-count strong { color: #153151; font-size: 13px; }
+        .priority-level-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 10px; }
+        .priority-level-count { display: flex; align-items: center; justify-content: space-between; border-radius: 4px; padding: 9px 10px; background: #f5f6f8; color: #607188; font-size: 8px; }
+        .priority-level-count strong { color: #153151; font-size: 13px; }
         .status-pill.warning { background: #fff2e0; color: #98620c; }
         .status-pill.danger { background: #fff0ef; color: #b62025; }
         .text-link { color: #bd1f24; font-size: 7px; font-weight: 700; }
@@ -95,7 +97,7 @@
             .topbar { padding: 0 15px; }
             .dashboard-content { padding: 22px 14px; }
             .metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
-            .risk-level-summary { grid-template-columns: 1fr; }
+            .priority-level-summary { grid-template-columns: 1fr; }
             .panel-grid, .lower-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 390px) { .welcome-row { align-items: flex-start; flex-direction: column; } .station-date { display: none; } }
@@ -130,11 +132,11 @@
         .welcome-row p { font-size: 16px; }
         .primary-button { min-height: 50px; flex: 0 0 auto; gap: 10px; padding: 0 21px; font-size: 15px; white-space: nowrap; }
         .metrics { gap: 15px; margin-bottom: 21px; }
-        .metric { min-height: 110px; gap: 13px; border-radius: 9px; padding: 17px 15px; }
-        .metric-icon { width: 39px; height: 39px; border-radius: 7px; font-size: 19px; }
+        .metric { min-height: 112px; grid-template-columns: 44px minmax(0,1fr); gap: 14px; border-radius: 9px; padding: 16px 18px; }
+        .metric-icon { width: 44px; height: 44px; border-radius: 8px; font-size: 20px; }
         .metric-label { font-size: 13px; }
-        .metric-value { margin-top: 5px; font-size: 30px; }
-        .metric-note { margin-top: 7px; font-size: 10px; }
+        .metric-value { margin-top: 5px; font-size: 31px; }
+        .metric-note { margin-top: 7px; font-size: 11px; }
         .panel-grid { gap: 19px; margin-bottom: 19px; }
         .panel { border-radius: 9px; }
         .panel-heading { min-height: 57px; padding: 0 20px; font-size: 15px; }
@@ -150,9 +152,9 @@
         .service-stats div { padding: 11px 0; font-size: 12px; }
         .panel-link { margin-top: 11px; font-size: 13px; }
         .lower-grid { gap: 19px; }
-        .risk-level-summary { gap: 12px; padding: 15px; }
-        .risk-level-count { padding: 13px 15px; font-size: 12px; }
-        .risk-level-count strong { font-size: 18px; }
+        .priority-level-summary { gap: 12px; padding: 15px; }
+        .priority-level-count { padding: 13px 15px; font-size: 12px; }
+        .priority-level-count strong { font-size: 18px; }
         .text-link { font-size: 12px; }
         th { font-size: 10px; }
         th, td { padding: 13px 14px; }
@@ -176,10 +178,11 @@
             .dashboard-content { padding: 26px 16px 32px; }
             .welcome-row h1 { font-size: 26px; }
             .welcome-row p { font-size: 14px; }
-            .metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
-            .metric { min-height: 96px; padding: 12px 10px; }
+            .metrics { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+            .metric { min-height: 102px; grid-template-columns: 38px minmax(0,1fr); gap: 10px; padding: 12px; }
+            .metric-icon { width: 38px; height: 38px; font-size: 18px; }
             .metric-label { font-size: 11px; }
-            .metric-value { font-size: 25px; }
+            .metric-value { font-size: 26px; }
             .metric-note { font-size: 9px; }
             .panel-heading { font-size: 14px; }
             .record-box span, .service-detail { font-size: 10px; }
@@ -191,79 +194,46 @@
             <div class="dashboard-content">
                 <section class="welcome-row">
                     <div>
-                        <span class="sample-label">Live data</span>
                         <h1>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ Auth::user()->name }}.</h1>
                         <p>System-wide status and governance overview for BFP</p>
                     </div>
                 </section>
 
                 <section class="metrics" aria-label="System metrics">
-                    <article class="metric" style="--accent:#18385e;--tint:#edf2f8"><span class="metric-icon">♙</span><div><div class="metric-label">Total Users</div><div class="metric-value">{{ $userCount }}</div><div class="metric-note">Across all roles</div></div></article>
-                    <article class="metric" style="--accent:#3679cb;--tint:#edf4fc"><span class="metric-icon">⬡</span><div><div class="metric-label">Total Equipment</div><div class="metric-value">{{ $equipmentCount }}</div><div class="metric-note">Registered assets</div></div></article>
-                    <article class="metric" style="--accent:#1c9b76;--tint:#eaf7f2"><span class="metric-icon">✓</span><div><div class="metric-label">Active Users</div><div class="metric-value">{{ $activeUserCount }}</div><div class="metric-note">{{ $userCount - $activeUserCount }} inactive accounts</div></div></article>
-                    <article class="metric" style="--accent:#7549d8;--tint:#f2effc"><span class="metric-icon">✧</span><div><div class="metric-label">High-Risk Equipment</div><div class="metric-value">{{ $highRiskCount }}</div><div class="metric-note">Review required</div></div></article>
-                    <article class="metric" style="--accent:#d94b4b;--tint:#fff0ef"><span class="metric-icon">⚠</span><div><div class="metric-label">Overdue Maintenance</div><div class="metric-value">{{ $overdueMaintenanceCount }}</div><div class="metric-note">Immediate attention</div></div></article>
-                    <article class="metric" style="--accent:#d4960b;--tint:#fff7df"><span class="metric-icon">♧</span><div><div class="metric-label">System Alerts</div><div class="metric-value">{{ $systemAlertCount }}</div><div class="metric-note">Risk and overdue items</div></div></article>
-                </section>
-
-                <section class="panel-grid">
-                    <article class="panel">
-                        <div class="panel-heading">System records</div>
-                        <div class="panel-body">
-                            <div class="record-grid">
-                                <div class="record-box"><span>Users</span><strong>{{ $userCount }}</strong></div>
-                                <div class="record-box"><span>Equipment</span><strong>{{ $equipmentCount }}</strong></div>
-                                <div class="record-box"><span>Maintenance</span><strong>{{ number_format($maintenanceCount) }}</strong></div>
-                                <div class="record-box"><span>Inspections</span><strong>{{ number_format($inspectionCount) }}</strong></div>
-                                <div class="record-box"><span>Repairs</span><strong>{{ number_format($repairCount) }}</strong></div>
-                                <div class="record-box"><span>Predictions</span><strong>{{ number_format($predictionCount) }}</strong></div>
-                            </div>
-                        </div>
-                    </article>
-                    <article class="panel">
-                        <div class="panel-heading">Decision Tree model</div>
-                        <div class="panel-body">
-                            @if($latestModel)
-                                <span class="service-status">Active</span>
-                                <div class="service-name">Equipment Risk Classifier</div>
-                                <div class="service-detail">{{ $latestModel->version_name }} · Trained {{ $latestModel->training_date?->format('M d, Y') ?? 'date unavailable' }}</div>
-                                <div class="service-stats">
-                                    <div><span>Model accuracy</span><strong>{{ number_format((float) $latestModel->accuracy * 100, 1) }}%</strong></div>
-                                    <div><span>Predictions stored</span><strong>{{ number_format($predictionCount) }}</strong></div>
-                                </div>
-                            @else
-                                <span class="service-status inactive">Not trained</span>
-                                <div class="service-name">Equipment Risk Classifier</div>
-                                <div class="service-detail">No trained model version is recorded yet.</div>
-                                <div class="service-stats"><div><span>Predictions stored</span><strong>{{ number_format($predictionCount) }}</strong></div></div>
-                            @endif
-                            <a class="panel-link" href="{{ route('risk.index') }}">Manage model →</a>
-                        </div>
-                    </article>
+                    <button type="button" class="metric" data-modal-open="dashboard-users-modal" style="--accent:#18385e;--tint:#edf2f8"><span class="metric-icon">♙</span><span><span class="metric-label">Total Users</span><span class="metric-value">{{ $userCount }}</span><span class="metric-note">Across all roles</span></span></button>
+                    <button type="button" class="metric" data-modal-open="dashboard-equipment-modal" style="--accent:#3679cb;--tint:#edf4fc"><span class="metric-icon">⬡</span><span><span class="metric-label">Total Equipment</span><span class="metric-value">{{ $equipmentCount }}</span><span class="metric-note">Registered assets</span></span></button>
+                    <button type="button" class="metric" data-modal-open="dashboard-active-users-modal" style="--accent:#1c9b76;--tint:#eaf7f2"><span class="metric-icon">✓</span><span><span class="metric-label">Active Users</span><span class="metric-value">{{ $activeUserCount }}</span><span class="metric-note">{{ $userCount - $activeUserCount }} inactive accounts</span></span></button>
+                    <button type="button" class="metric" data-modal-open="dashboard-low-modal" style="--accent:#1c9b76;--tint:#eaf7f2"><span class="metric-icon">✓</span><span><span class="metric-label">Low Priority</span><span class="metric-value">{{ $priorityCounts['Low'] }}</span><span class="metric-note">Normal maintenance interval</span></span></button>
+                    <button type="button" class="metric" data-modal-open="dashboard-medium-modal" style="--accent:#d4960b;--tint:#fff7df"><span class="metric-icon">◷</span><span><span class="metric-label">Medium Priority</span><span class="metric-value">{{ $priorityCounts['Medium'] }}</span><span class="metric-note">Approaching due dates</span></span></button>
+                    <button type="button" class="metric" data-modal-open="dashboard-high-modal" style="--accent:#7549d8;--tint:#f2effc"><span class="metric-icon">△</span><span><span class="metric-label">High Priority</span><span class="metric-value">{{ $priorityCounts['High'] }}</span><span class="metric-note">Review required</span></span></button>
                 </section>
 
                 <section class="panel" style="margin-bottom: 12px">
-                    <div class="panel-heading">Equipment risk levels <a class="text-link" href="{{ route('risk.index') }}">View all predictions →</a></div>
-                    <div class="risk-level-summary" aria-label="Latest equipment risk levels">
-                        @foreach($riskLevels as $label => $total)
-                            <div class="risk-level-count">
-                                <span class="status-pill {{ $label === 'High Risk' ? 'danger' : ($label === 'Medium Risk' ? 'warning' : '') }}">{{ $label }}</span>
+                    <div class="panel-heading">Equipment priorities <button type="button" class="text-link" style="border:0;background:transparent;cursor:pointer" data-modal-open="dashboard-equipment-list-modal">View equipment →</button></div>
+                    <div class="priority-level-summary" aria-label="Equipment priority levels">
+                        @foreach($priorityCounts as $label => $total)
+                            <div class="priority-level-count">
+                                <span class="status-pill {{ $label === 'High' ? 'danger' : ($label === 'Medium' ? 'warning' : '') }}">{{ $label }} priority</span>
                                 <strong>{{ number_format($total) }}</strong>
                             </div>
                         @endforeach
                     </div>
                     <div class="table-wrap">
                         <table>
-                            <thead><tr><th>Equipment</th><th>Risk level</th><th>Prediction date</th></tr></thead>
+                            <thead><tr><th>Equipment</th><th>Priority</th><th>Reason</th><th>Next due date</th></tr></thead>
                             <tbody>
-                                @forelse($latestRiskPredictions->take(3) as $prediction)
+                                @forelse($priorityRecords->take(3) as $record)
+                                    @php
+                                        $priorityEquipment = $record['equipment'];
+                                    @endphp
                                     <tr>
-                                        <td>{{ $prediction->equipment?->equipment_name ?? 'Equipment record unavailable' }}</td>
-                                        <td><span class="status-pill {{ $prediction->prediction_label === 'High Risk' ? 'danger' : ($prediction->prediction_label === 'Medium Risk' ? 'warning' : '') }}">{{ $prediction->prediction_label }}</span></td>
-                                        <td>{{ $prediction->prediction_timestamp?->format('M d, Y') ?? '—' }}</td>
+                                        <td>{{ $priorityEquipment->equipment_name }}</td>
+                                        <td><span class="status-pill {{ $record['priority'] === 'High' ? 'danger' : ($record['priority'] === 'Medium' ? 'warning' : '') }}">{{ $record['priority'] }}</span></td>
+                                        <td>{{ $record['reason'] }}</td>
+                                        <td>{{ $record['due_date']?->format('M d, Y') ?? '—' }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="3" class="empty-state">No risk predictions are available yet.</td></tr>
+                                    <tr><td colspan="4" class="empty-state">No equipment records are available.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -272,7 +242,7 @@
 
                 <section class="lower-grid">
                     <article class="panel">
-                        <div class="panel-heading">User management overview <a class="text-link" href="{{ route('users.index') }}">View all users →</a></div>
+                        <div class="panel-heading">User management overview</div>
                         <div class="table-wrap">
                             <table>
                                 <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
@@ -292,7 +262,7 @@
                         </div>
                     </article>
                     <article class="panel">
-                        <div class="panel-heading">Recent records <a class="text-link" href="{{ route('equipment.index') }}">View records →</a></div>
+                        <div class="panel-heading">Recent records</div>
                         @forelse($recentActivity as $activity)
                             <div class="activity-row">
                                 <span class="activity-icon">•</span>
@@ -305,4 +275,77 @@
                 </section>
             </div>
     </div>
+
+    <dialog id="dashboard-users-modal" class="app-modal equipment-view-modal" aria-labelledby="dashboard-users-title">
+        <div class="app-modal-panel" style="max-width:700px">
+            <header class="app-modal-header"><div><h2 id="dashboard-users-title">Users</h2><p>{{ number_format($userCount) }} user accounts</p></div><button type="button" class="app-modal-close" aria-label="Close users" data-modal-close>&times;</button></header>
+            <div class="app-modal-body"><div class="ops-table-scroll"><table class="ops-table"><thead><tr><th>Name</th><th>Role</th><th>Status</th></tr></thead><tbody>@forelse($metricUsers as $user)<tr><td>{{ $user->name }}</td><td>{{ ucfirst(str_replace('_', ' ', $user->role ?: '')) }}</td><td>{{ $user->status ?: 'Unknown' }}</td></tr>@empty<tr><td colspan="3" class="empty-state">No users found.</td></tr>@endforelse</tbody></table></div></div>
+            <footer class="app-modal-footer"><button type="button" class="app-modal-button" data-modal-close>Close</button></footer>
+        </div>
+    </dialog>
+
+    <dialog id="dashboard-active-users-modal" class="app-modal equipment-view-modal" aria-labelledby="dashboard-active-users-title">
+        <div class="app-modal-panel" style="max-width:700px">
+            <header class="app-modal-header"><div><h2 id="dashboard-active-users-title">Active users</h2><p>{{ number_format($activeUserCount) }} active accounts</p></div><button type="button" class="app-modal-close" aria-label="Close active users" data-modal-close>&times;</button></header>
+            <div class="app-modal-body"><div class="ops-table-scroll"><table class="ops-table"><thead><tr><th>Name</th><th>Role</th><th>Status</th></tr></thead><tbody>@forelse($metricActiveUsers as $user)<tr><td>{{ $user->name }}</td><td>{{ ucfirst(str_replace('_', ' ', $user->role ?: '')) }}</td><td>{{ $user->status }}</td></tr>@empty<tr><td colspan="3" class="empty-state">No active users found.</td></tr>@endforelse</tbody></table></div></div>
+            <footer class="app-modal-footer"><button type="button" class="app-modal-button" data-modal-close>Close</button></footer>
+        </div>
+    </dialog>
+
+    <dialog id="dashboard-equipment-modal" class="app-modal equipment-view-modal" aria-labelledby="dashboard-equipment-title">
+        <div class="app-modal-panel" style="max-width:900px">
+            <header class="app-modal-header"><div><h2 id="dashboard-equipment-title">Equipment list</h2><p>{{ number_format($equipmentCount) }} registered equipment records</p></div><button type="button" class="app-modal-close" aria-label="Close equipment list" data-modal-close>&times;</button></header>
+            <div class="app-modal-body"><div class="ops-table-scroll"><table class="ops-table"><thead><tr><th>Equipment</th><th>Property no.</th><th>Status</th><th>Location</th><th>Assigned to</th></tr></thead><tbody>@forelse($metricEquipment as $equipmentItem)<tr><td>{{ $equipmentItem->equipment_name }}</td><td>{{ $equipmentItem->asset_code }}</td><td>{{ $equipmentItem->status }}</td><td>{{ $equipmentItem->location ?: '—' }}</td><td>{{ $equipmentItem->assignedUser?->name ?: 'Unassigned' }}</td></tr>@empty<tr><td colspan="5" class="empty-state">No equipment found.</td></tr>@endforelse</tbody></table></div></div>
+            <footer class="app-modal-footer"><a class="app-modal-button" href="{{ route('equipment.index') }}">Open equipment page</a><button type="button" class="app-modal-button" data-modal-close>Close</button></footer>
+        </div>
+    </dialog>
+
+    @foreach(['Low', 'Medium', 'High'] as $metricPriority)
+        <dialog id="dashboard-{{ strtolower($metricPriority) }}-modal" class="app-modal equipment-view-modal" aria-labelledby="dashboard-{{ strtolower($metricPriority) }}-title">
+            <div class="app-modal-panel" style="max-width:900px">
+                <header class="app-modal-header"><div><h2 id="dashboard-{{ strtolower($metricPriority) }}-title">{{ $metricPriority }} priority equipment</h2><p>{{ number_format($priorityCounts[$metricPriority]) }} matching records</p></div><button type="button" class="app-modal-close" aria-label="Close {{ $metricPriority }} priority list" data-modal-close>&times;</button></header>
+                <div class="app-modal-body"><div class="ops-table-scroll"><table class="ops-table"><thead><tr><th>Equipment</th><th>Property no.</th><th>Priority</th><th>Reason</th><th>Next due date</th></tr></thead><tbody>@forelse(($allPriorityRecords ?? $priorityRecords)->where('priority', $metricPriority) as $record)@php($equipmentItem = $record['equipment'])<tr><td><strong>{{ $equipmentItem->equipment_name }}</strong></td><td>{{ $equipmentItem->asset_code }}</td><td><span class="status-pill {{ $metricPriority === 'High' ? 'danger' : ($metricPriority === 'Medium' ? 'warning' : '') }}">{{ $metricPriority }}</span></td><td>{{ $record['reason'] }}</td><td>{{ $record['due_date']?->format('M d, Y') ?? '—' }}</td></tr>@empty<tr><td colspan="5" class="empty-state">No {{ strtolower($metricPriority) }} priority equipment found.</td></tr>@endforelse</tbody></table></div></div>
+                <footer class="app-modal-footer"><button type="button" class="app-modal-button" data-modal-close>Close</button></footer>
+            </div>
+        </dialog>
+    @endforeach
+
+    <dialog id="dashboard-equipment-list-modal" class="app-modal equipment-view-modal" aria-labelledby="dashboard-equipment-list-title">
+        <div class="app-modal-panel" style="max-width:900px">
+            <header class="app-modal-header">
+                <div>
+                    <h2 id="dashboard-equipment-list-title">Equipment list</h2>
+                    <p>{{ number_format($equipmentCount) }} registered equipment records</p>
+                </div>
+                <button type="button" class="app-modal-close" aria-label="Close equipment list" data-modal-close>&times;</button>
+            </header>
+            <div class="app-modal-body">
+                <div class="ops-table-scroll">
+                    <table class="ops-table report-table">
+                        <thead>
+                            <tr><th>Equipment</th><th>Property no.</th><th>Priority</th><th>Reason</th><th>Next due date</th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse(($allPriorityRecords ?? $priorityRecords) as $record)
+                                @php($equipmentItem = $record['equipment'])
+                                <tr>
+                                    <td><strong>{{ $equipmentItem->equipment_name }}</strong></td>
+                                    <td>{{ $equipmentItem->asset_code }}</td>
+                                    <td><span class="status-pill {{ $record['priority'] === 'High' ? 'danger' : ($record['priority'] === 'Medium' ? 'warning' : '') }}">{{ $record['priority'] }}</span></td>
+                                    <td>{{ $record['reason'] }}</td>
+                                    <td>{{ $record['due_date']?->format('M d, Y') ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="empty-state">No equipment records are available.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <footer class="app-modal-footer">
+                <a class="app-modal-button" href="{{ route('equipment.index') }}">Open equipment page</a>
+                <button type="button" class="app-modal-button" data-modal-close>Close</button>
+            </footer>
+        </div>
+    </dialog>
 </x-app-layout>

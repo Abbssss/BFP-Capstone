@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Equipment;
 use App\Models\User;
 use App\Services\RolePermissionService;
+use App\Support\SearchQuery;
 use App\Support\RolePermissionRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,18 +24,11 @@ class UserController extends Controller
             'role' => ['nullable', 'in:super_admin,admin,maintenance,pending'],
         ]);
 
-        $users = User::query()
-            ->when($validated['search'] ?? null, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('name', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%');
-                });
-            })
+        $userQuery = User::query()
             ->when($validated['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->when($validated['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
-            ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
+            ->when($validated['role'] ?? null, fn ($query, $role) => $query->where('role', $role));
+        SearchQuery::apply($userQuery, $validated['search'] ?? null, ['name', 'email', 'office_code', 'role', 'status']);
+        $users = $userQuery->orderBy('name')->paginate(10)->withQueryString();
 
         return view('users.index', compact('users'));
     }

@@ -24,9 +24,6 @@
                     <x-nav-link :href="route('maintenances.index')" :active="request()->routeIs('maintenances.*')">
                         {{ __('Maintenance') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('risk.index')" :active="request()->routeIs('risk.*')">
-                        {{ __('Predictions') }}
-                    </x-nav-link>
                     @if(Auth::user()->role === 'super_admin')
                         <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
                             {{ __('Users') }}
@@ -93,9 +90,6 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('maintenances.index')" :active="request()->routeIs('maintenances.*')">
                 {{ __('Maintenance') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('risk.index')" :active="request()->routeIs('risk.*')">
-                {{ __('Predictions') }}
             </x-responsive-nav-link>
             @if(Auth::user()->role === 'super_admin')
                 <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">

@@ -6,7 +6,10 @@ use App\Models\Equipment;
 use App\Models\EquipmentStatusHistory;
 use App\Models\Maintenance;
 use App\Models\User;
+use App\Services\EquipmentPriorityService;
+use App\Services\RecordReferenceNumberService;
 use App\Support\OfficeScope;
+use App\Support\SearchQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,28 +17,51 @@ use Illuminate\View\View;
 
 class MaintenanceController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, EquipmentPriorityService $priorities): View
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', 'string', 'max:100'],
+            'due' => ['nullable', 'in:overdue,soon'],
         ]);
-        $maintenances = OfficeScope::records(Maintenance::query())->with('assignedTo', 'equipment.assignedUser')
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('request_number', 'like', '%'.$search.'%')
-                        ->orWhere('maintenance_type', 'like', '%'.$search.'%')
-                        ->orWhere('technician_name', 'like', '%'.$search.'%')
-                        ->orWhereHas('assignedTo', fn ($userQuery) => $userQuery->where('name', 'like', '%'.$search.'%'))
-                        ->orWhereHas('equipment', fn ($equipmentQuery) => $equipmentQuery->where('equipment_name', 'like', '%'.$search.'%'));
-                });
-            })
+        $maintenanceQuery = OfficeScope::records(Maintenance::query())->with([
+            'assignedTo',
+            'equipment.assignedUser',
+            'equipment.latestInspection',
+            'equipment.maintenances',
+        ])
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['category'] ?? null, fn ($query, $type) => $query->where('maintenance_type', $type))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+            ->when($filters['due'] ?? null, function ($query, $due) {
+                $query->whereNotIn('status', ['Completed', 'Cancelled']);
+                if ($due === 'overdue') {
+                    $query->whereRaw('COALESCE(next_recommended_maintenance_date, start_date) < ?', [today()->toDateString()]);
+                } else {
+                    $query->whereRaw('COALESCE(next_recommended_maintenance_date, start_date) BETWEEN ? AND ?', [
+                        today()->toDateString(),
+                        today()->addDays((int) config('maintenance.priority_warning_days', 30))->toDateString(),
+                    ]);
+                }
+            });
+        SearchQuery::apply($maintenanceQuery, $filters['search'] ?? null, [
+            'request_number', 'maintenance_type', 'technician_name', 'reported_issue', 'diagnosis',
+            'action_taken', 'parts_replaced', 'maintenance_outcome', 'status', 'priority',
+        ], [
+            'assignedTo' => ['name'],
+            'equipment' => ['equipment_name', 'asset_code', 'asset_tag', 'category', 'location'],
+            'equipment.assignedUser' => ['name'],
+        ]);
+        $maintenances = $maintenanceQuery->latest()->paginate(10)->withQueryString();
+        $maintenances->getCollection()->each(function (Maintenance $maintenance) use ($priorities): void {
+            $equipmentPriority = $maintenance->equipment
+                ? $priorities->assess($maintenance->equipment)['priority']
+                : $maintenance->priority;
+            $maintenance->setAttribute(
+                'display_priority',
+                $maintenance->priority === 'Critical' ? 'Critical' : $equipmentPriority
+            );
+        });
         $equipmentOptions = OfficeScope::equipment(Equipment::query())->with('assignedUser')->orderBy('equipment_name')->get();
         $personnelOptions = OfficeScope::personnel(User::query())->where('status', 'active')->orderBy('name')->get();
         $equipmentUnderMaintenance = OfficeScope::equipment(Equipment::query())->with('assignedUser')
@@ -57,49 +83,63 @@ class MaintenanceController extends Controller
         return view('maintenances.create', compact('equipment', 'personnelOptions', 'defaultMaintenanceType'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, RecordReferenceNumberService $references): RedirectResponse
     {
         if (in_array($request->input('_form'), ['complete-equipment-maintenance', 'complete-equipment-repair'], true)) {
-            return $this->storeEquipmentWorkRecord($request);
+            return $this->storeEquipmentWorkRecord($request, $references);
         }
 
         $validated = $request->validate([
             'equipment_id' => ['required', OfficeScope::equipmentExistsRule()],
             'assigned_to_id' => ['nullable', OfficeScope::personnelExistsRule()->where('status', 'active')],
-            'request_number' => ['required', 'string', 'unique:maintenances,request_number'],
             'maintenance_type' => ['required', 'string'],
             'priority' => ['required', 'string'],
             'status' => ['required', 'string'],
-            'reported_issue' => ['nullable', 'string'],
+            'reported_issue' => ['required_if:_form,create-repair', 'nullable', 'string'],
             'diagnosis' => ['nullable', 'string'],
             'action_taken' => ['nullable', 'string'],
             'parts_replaced' => ['nullable', 'string'],
             'maintenance_cost' => ['nullable', 'numeric'],
             'start_date' => ['nullable', 'date'],
-            'completion_date' => ['nullable', 'date'],
+            'completion_date' => ['required_if:status,Completed', 'nullable', 'date'],
             'next_recommended_maintenance_date' => ['nullable', 'date'],
             'technician_name' => ['nullable', 'string'],
+            'action_taken' => ['required_if:status,Completed', 'nullable', 'string'],
             'downtime_hours' => ['nullable', 'numeric'],
             'maintenance_outcome' => ['nullable', 'string'],
         ]);
+        $this->ensureCompletionTechnician($validated);
+        if (($validated['status'] ?? null) === 'Completed') {
+            $validated['approval_status'] = 'Pending';
+        }
 
-        Maintenance::create($validated);
+        DB::transaction(function () use ($validated, $references): void {
+            $equipment = OfficeScope::equipment(Equipment::query())
+                ->lockForUpdate()
+                ->findOrFail($validated['equipment_id']);
+            $validated['request_number'] = $references->nextFor($equipment);
+            $maintenance = Maintenance::create($validated);
+            $this->applyCompletionSchedule($equipment, $maintenance);
+        });
 
-        return redirect()->route('maintenances.index')->with('success', 'Maintenance record saved.');
+        $redirectRoute = $request->input('_form') === 'create-repair' ? 'repairs.index' : 'maintenances.index';
+
+        return redirect()->route($redirectRoute)->with('success', $redirectRoute === 'repairs.index' ? 'Repair record saved.' : 'Maintenance record saved.');
     }
 
-    public function storeEquipmentMaintenance(Request $request, Equipment $equipment): RedirectResponse
+    public function storeEquipmentMaintenance(Request $request, Equipment $equipment, RecordReferenceNumberService $references): RedirectResponse
     {
-        return $this->storeEquipmentWorkRecord($request, $equipment, 'Under Maintenance', 'complete-equipment-maintenance', 'Maintenance');
+        return $this->storeEquipmentWorkRecord($request, $references, $equipment, 'Under Maintenance', 'complete-equipment-maintenance', 'Maintenance');
     }
 
-    public function storeEquipmentRepair(Request $request, Equipment $equipment): RedirectResponse
+    public function storeEquipmentRepair(Request $request, Equipment $equipment, RecordReferenceNumberService $references): RedirectResponse
     {
-        return $this->storeEquipmentWorkRecord($request, $equipment, 'Under Repair', 'complete-equipment-repair', 'Repair');
+        return $this->storeEquipmentWorkRecord($request, $references, $equipment, 'Under Repair', 'complete-equipment-repair', 'Repair');
     }
 
     private function storeEquipmentWorkRecord(
         Request $request,
+        RecordReferenceNumberService $references,
         ?Equipment $equipment = null,
         ?string $expectedStatus = null,
         ?string $expectedForm = null,
@@ -110,23 +150,27 @@ class MaintenanceController extends Controller
         $validated = $request->validate([
             '_form' => ['required', 'in:complete-equipment-maintenance,complete-equipment-repair'],
             '_equipment_id' => ['required', 'integer'],
-            'request_number' => ['required', 'string', 'max:255', 'unique:maintenances,request_number'],
             'maintenance_type' => ['required', 'string', 'max:255'],
             'priority' => ['required', 'in:Low,Medium,High,Critical'],
             'status' => ['required', 'in:Pending,Approved,Scheduled,In Progress,Completed,Cancelled'],
             'equipment_status' => ['required', 'in:Operational,Operational with Restrictions,Under Inspection,Under Maintenance,Under Repair,Out of Service,Retired'],
             'start_date' => ['nullable', 'date'],
-            'completion_date' => ['nullable', 'date'],
+            'completion_date' => ['required_if:status,Completed', 'nullable', 'date'],
             'next_recommended_maintenance_date' => ['nullable', 'date'],
             'technician_name' => ['nullable', 'string', 'max:255'],
             'reported_issue' => [$workType === 'Repair' ? 'required' : 'nullable', 'string'],
             'diagnosis' => ['nullable', 'string'],
-            'action_taken' => ['nullable', 'string'],
+            'action_taken' => ['required_if:status,Completed', 'nullable', 'string'],
             'parts_replaced' => ['nullable', 'string'],
             'maintenance_cost' => ['nullable', 'numeric', 'min:0'],
             'downtime_hours' => ['nullable', 'numeric', 'min:0'],
             'maintenance_outcome' => ['nullable', 'string', 'max:255'],
         ]);
+        if ($validated['status'] === 'Completed' && blank($validated['technician_name'] ?? null)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'technician_name' => 'Record the technician who completed this work.',
+            ]);
+        }
 
         if ($equipment && (int) $validated['_equipment_id'] !== $equipment->id) {
             abort(404);
@@ -142,7 +186,7 @@ class MaintenanceController extends Controller
             abort(422);
         }
 
-        DB::transaction(function () use ($equipment, $expectedStatus, $validated, $request, $workType): void {
+        DB::transaction(function () use ($equipment, $expectedStatus, $validated, $request, $workType, $references): void {
             $lockedEquipment = OfficeScope::equipment(Equipment::query())->lockForUpdate()->findOrFail($equipment->id);
             if ($lockedEquipment->status !== $expectedStatus) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
@@ -152,10 +196,11 @@ class MaintenanceController extends Controller
 
             $maintenance = Maintenance::create([
                 'equipment_id' => $lockedEquipment->id,
-                'request_number' => $validated['request_number'],
+                'request_number' => $references->nextFor($lockedEquipment),
                 'maintenance_type' => $validated['maintenance_type'],
                 'priority' => $validated['priority'],
                 'status' => $validated['status'],
+                'approval_status' => $validated['status'] === 'Completed' ? 'Pending' : 'Not Required',
                 'reported_issue' => $validated['reported_issue'] ?? null,
                 'diagnosis' => $validated['diagnosis'] ?? null,
                 'action_taken' => $validated['action_taken'] ?? null,
@@ -169,7 +214,7 @@ class MaintenanceController extends Controller
                 'maintenance_outcome' => $validated['maintenance_outcome'] ?? null,
             ]);
 
-            $lockedEquipment->last_maintenance_date = $maintenance->completion_date ?? $maintenance->start_date ?? $lockedEquipment->last_maintenance_date;
+            $this->applyCompletionSchedule($lockedEquipment, $maintenance);
             if ($lockedEquipment->status !== $validated['equipment_status']) {
                 EquipmentStatusHistory::create([
                     'equipment_id' => $lockedEquipment->id,
@@ -193,6 +238,46 @@ class MaintenanceController extends Controller
         $maintenance = OfficeScope::records(Maintenance::query())->with('equipment')->findOrFail($id);
 
         return view('maintenances.show', compact('maintenance'));
+    }
+
+    public function updatePendingStatus(Request $request, string $id): RedirectResponse
+    {
+        $repairRoute = $request->routeIs('repairs.status');
+        $validated = $request->validate([
+            'status' => ['required', 'in:Approved,Scheduled,In Progress,Completed,Cancelled'],
+            'completion_date' => ['required_if:status,Completed', 'nullable', 'date'],
+            'technician_name' => ['required_if:status,Completed', 'nullable', 'string', 'max:255'],
+            'action_taken' => ['required_if:status,Completed', 'nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+        if ($validated['status'] === 'Completed') {
+            $validated['approval_status'] = 'Pending';
+            $validated['reviewed_by_id'] = null;
+            $validated['reviewed_at'] = null;
+            $validated['approval_notes'] = null;
+        }
+        $isRepair = false;
+
+        DB::transaction(function () use ($id, $validated, $repairRoute, &$isRepair): void {
+            $maintenance = OfficeScope::records(Maintenance::query())
+                ->lockForUpdate()
+                ->whereNotIn('status', ['Completed', 'Cancelled'])
+                ->findOrFail($id);
+            $isRepair = str_contains(strtolower($maintenance->maintenance_type), 'repair')
+                || filled($maintenance->reported_issue);
+            if ($repairRoute && ! $isRepair) {
+                abort(404);
+            }
+            $equipment = OfficeScope::equipment(Equipment::query())
+                ->lockForUpdate()
+                ->findOrFail($maintenance->equipment_id);
+
+            $maintenance->update($validated);
+            $this->applyCompletionSchedule($equipment, $maintenance);
+        });
+
+        return redirect()->route($isRepair ? 'repairs.index' : 'maintenances.index')
+            ->with('success', ucfirst($isRepair ? 'Repair' : 'Maintenance').' status updated successfully.');
     }
 
     public function edit(string $id): View
@@ -220,14 +305,28 @@ class MaintenanceController extends Controller
             'parts_replaced' => ['nullable', 'string'],
             'maintenance_cost' => ['nullable', 'numeric'],
             'start_date' => ['nullable', 'date'],
-            'completion_date' => ['nullable', 'date'],
+            'completion_date' => ['required_if:status,Completed', 'nullable', 'date'],
             'next_recommended_maintenance_date' => ['nullable', 'date'],
             'technician_name' => ['nullable', 'string'],
+            'action_taken' => ['required_if:status,Completed', 'nullable', 'string'],
             'downtime_hours' => ['nullable', 'numeric'],
             'maintenance_outcome' => ['nullable', 'string'],
         ]);
+        if ($validated['status'] === 'Completed') {
+            $validated['approval_status'] = 'Pending';
+            $validated['reviewed_by_id'] = null;
+            $validated['reviewed_at'] = null;
+            $validated['approval_notes'] = null;
+        }
+        $this->ensureCompletionTechnician($validated);
 
-        $maintenance->update($validated);
+        DB::transaction(function () use ($maintenance, $validated): void {
+            $equipment = OfficeScope::equipment(Equipment::query())
+                ->lockForUpdate()
+                ->findOrFail($validated['equipment_id']);
+            $maintenance->update($validated);
+            $this->applyCompletionSchedule($equipment, $maintenance);
+        });
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance record updated.');
     }
@@ -237,5 +336,37 @@ class MaintenanceController extends Controller
         OfficeScope::records(Maintenance::query())->findOrFail($id)->delete();
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance record removed.');
+    }
+
+    private function applyCompletionSchedule(Equipment $equipment, Maintenance $maintenance): void
+    {
+        if ($maintenance->status !== 'Completed') {
+            return;
+        }
+
+        $completionDate = $maintenance->completion_date;
+        $equipment->last_maintenance_date = $completionDate;
+
+        if (! $maintenance->next_recommended_maintenance_date && $equipment->maintenance_interval_days) {
+            $maintenance->next_recommended_maintenance_date = $completionDate
+                ->copy()
+                ->addDays($equipment->maintenance_interval_days);
+            $maintenance->save();
+        }
+
+        $equipment->save();
+    }
+
+    private function ensureCompletionTechnician(array $validated): void
+    {
+        if (
+            ($validated['status'] ?? null) === 'Completed'
+            && empty($validated['assigned_to_id'])
+            && blank($validated['technician_name'] ?? null)
+        ) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'technician_name' => 'Assign a technician or record the technician who completed this work.',
+            ]);
+        }
     }
 }

@@ -10,12 +10,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                     <div><strong>Asset Code:</strong> {{ $equipment->asset_code }}</div>
                     <div><strong>Category:</strong> {{ $equipment->category }}</div>
+                    <div><strong>Date Acquired:</strong> {{ $equipment->commission_date?->format('M d, Y') ?? 'N/A' }}</div>
                     <div><strong>Status:</strong> {{ $equipment->status }}</div>
                     <div><strong>Location:</strong> {{ $equipment->location }}</div>
                     <div><strong>Last Inspection:</strong> {{ $equipment->last_inspection_date ?? 'N/A' }}</div>
                     <div><strong>Next Inspection:</strong> {{ $equipment->next_inspection_date ?? 'N/A' }}</div>
                     <div><strong>Maintenance Interval:</strong> {{ $equipment->maintenance_interval_days ?? 'N/A' }} days</div>
-                    <div><strong>Service Age:</strong> {{ $equipment->service_age_years ?? 'N/A' }} years</div>
                 </div>
             </div>
         </div>

@@ -15,10 +15,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        $categories = DB::table('equipment')->distinct()->pluck('category')
-            ->merge(['Fire Engine', 'Portable Water Pump', 'SCBA', 'Hydraulic Rescue Tool'])
-            ->filter()
-            ->unique()
+        $categories = collect(['Mechanical', 'Non Mechanical'])
             ->map(fn ($name) => ['name' => $name, 'created_at' => now(), 'updated_at' => now()])
             ->values()
             ->all();

@@ -100,7 +100,6 @@
         <section class="content">
             <div class="intro">
                 <div>
-                    <span class="eyebrow">Live data</span>
                     <h1>User Management</h1>
                     <p>Create accounts and control system access across all three authorized roles.</p>
                 </div>

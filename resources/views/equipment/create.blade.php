@@ -12,7 +12,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Equipment Name</label>
-                            <input type="text" name="equipment_name" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            <input type="text" name="equipment_name" value="{{ old('equipment_name') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('equipment_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Category</label>
@@ -21,7 +22,7 @@
                                     <option value="{{ $category }}" @selected(old('category') === $category)>{{ $category }}</option>
                                 @endforeach
                             </select>
-                            <small>Select a person to automatically set the equipment office code.</small>
+                            @error('category')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Office Code</label>
@@ -34,83 +35,48 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Asset Tag</label>
-                            <input type="text" name="asset_tag" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="asset_tag" value="{{ old('asset_tag') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('asset_tag')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Serial Number</label>
-                            <input type="text" name="serial_number" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="serial_number" value="{{ old('serial_number') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('serial_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Manufacturer</label>
-                            <input type="text" name="manufacturer" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="manufacturer" value="{{ old('manufacturer') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('manufacturer')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Model</label>
-                            <input type="text" name="model" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Commission Date</label>
-                            <input type="date" name="commission_date" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="model" value="{{ old('model') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('model')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Status</label>
-                            <select name="status" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
-                                <option>Operational</option>
-                                <option>Operational with Restrictions</option>
-                                <option>Under Inspection</option>
-                                <option>Under Maintenance</option>
-                                <option>Under Repair</option>
-                                <option>Out of Service</option>
-                                <option>Retired</option>
+                            <select name="status" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                @foreach(['Operational','Operational with Restrictions','Under Inspection','Under Maintenance','Under Repair','Out of Service','Retired'] as $status)
+                                    <option value="{{ $status }}" @selected(old('status', 'Operational') === $status)>{{ $status }}</option>
+                                @endforeach
                             </select>
+                            @error('status')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Location</label>
-                            <input type="text" name="location" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="location" value="{{ old('location') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('location')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Assigned Personnel</label>
-                            <select name="assigned_personnel" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" data-equipment-personnel-select>
-                                <option value="">None</option>
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}" data-office-code="{{ $user->office_code }}" @selected(old('assigned_personnel') == $user->id)>{{ $user->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Service Age Years</label>
-                            <input type="number" name="service_age_years" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" min="0">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Engine Operating Hours</label>
-                            <input type="number" name="engine_operating_hours" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" min="0">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Runtime Cycles</label>
-                            <input type="number" name="runtime_cycles" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" min="0">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Mechanical Failure Count</label>
-                            <input type="number" name="mechanical_failure_count" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" min="0">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Last Maintenance Date</label>
-                            <input type="date" name="last_maintenance_date" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Maintenance Interval (days)</label>
-                            <input type="number" name="maintenance_interval_days" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" min="0">
+                            <label class="block text-sm font-medium text-gray-700">Date Acquired</label>
+                            <input type="date" name="commission_date" value="{{ old('commission_date') }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                            @error('commission_date')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea name="description" rows="3" class="mt-1 w-full border-gray-300 rounded-md shadow-sm"></textarea>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Remarks</label>
-                        <textarea name="remarks" rows="3" class="mt-1 w-full border-gray-300 rounded-md shadow-sm"></textarea>
+                        <textarea name="description" rows="3" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">{{ old('description') }}</textarea>
                     </div>
 
                     <div class="flex justify-end gap-3">

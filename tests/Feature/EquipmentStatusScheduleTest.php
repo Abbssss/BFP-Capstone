@@ -44,6 +44,7 @@ class EquipmentStatusScheduleTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
         $equipment = $this->createEquipment('Under Inspection');
+        $generatedReference = 'STA-'.today()->format('m-d-Y').'-00001';
 
         $this->actingAs($admin)
             ->post('/inspections', [
@@ -65,7 +66,7 @@ class EquipmentStatusScheduleTest extends TestCase
 
         $this->assertDatabaseHas('inspections', [
             'equipment_id' => $equipment->id,
-            'reference_number' => 'INSP-STATUS-UPDATE-01',
+            'reference_number' => $generatedReference,
             'outcome' => 'Passed with Findings',
         ]);
         $this->assertDatabaseHas('equipment', [
@@ -79,12 +80,12 @@ class EquipmentStatusScheduleTest extends TestCase
             'old_status' => 'Under Inspection',
             'new_status' => 'Operational with Restrictions',
             'changed_by' => $admin->id,
-            'reason' => 'Inspection INSP-STATUS-UPDATE-01',
+            'reason' => 'Inspection '.$generatedReference,
         ]);
 
         $this->get('/inspections')
             ->assertOk()
-            ->assertSee('INSP-STATUS-UPDATE-01')
+            ->assertSee($generatedReference)
             ->assertDontSee('Equipment currently under inspection');
     }
 
@@ -166,10 +167,239 @@ class EquipmentStatusScheduleTest extends TestCase
             ->assertSee($updatedInspectionDate->format('M d, Y'));
     }
 
+    public function test_admin_can_schedule_inspection_maintenance_and_repair_for_office_maintenance_user(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $maintenanceUser = User::factory()->create(['role' => 'maintenance', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $inspectionEquipment = $this->createEquipment('Operational');
+        $maintenanceEquipment = $this->createEquipment('Operational');
+        $repairEquipment = $this->createEquipment('Operational');
+        $scheduledDate = today()->addDays(7)->toDateString();
+
+        $this->actingAs($admin)
+            ->post(route('schedule.store'), [
+                '_form' => 'create-schedule',
+                'work_type' => 'Inspection',
+                'equipment_id' => $inspectionEquipment->id,
+                'assigned_to_id' => $maintenanceUser->id,
+                'scheduled_date' => $scheduledDate,
+                'priority' => 'High',
+                'notes' => 'Annual safety inspection',
+            ])
+            ->assertRedirect(route('schedule.index'));
+
+        $this->assertDatabaseHas('inspections', [
+            'equipment_id' => $inspectionEquipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'priority' => 'High',
+            'inspector_name' => $maintenanceUser->name,
+            'inspection_date' => $scheduledDate.' 09:00:00',
+        ]);
+        $this->assertSame($scheduledDate, $inspectionEquipment->fresh()->next_inspection_date->toDateString());
+
+        foreach ([['Maintenance', $maintenanceEquipment], ['Repair', $repairEquipment]] as [$type, $equipment]) {
+            $this->post(route('schedule.store'), [
+                '_form' => 'create-schedule',
+                'work_type' => $type,
+                'equipment_id' => $equipment->id,
+                'assigned_to_id' => $maintenanceUser->id,
+                'scheduled_date' => $scheduledDate,
+                'priority' => 'Medium',
+                'notes' => 'Scheduled '.$type,
+            ])->assertRedirect(route('schedule.index'));
+
+            $this->assertDatabaseHas('maintenances', [
+                'equipment_id' => $equipment->id,
+                'assigned_to_id' => $maintenanceUser->id,
+                'maintenance_type' => $type === 'Repair' ? 'Repair' : 'Preventive maintenance',
+                'priority' => 'Medium',
+                'status' => 'Scheduled',
+                'start_date' => $scheduledDate.' 00:00:00',
+            ]);
+        }
+    }
+
+    public function test_equipment_priority_updates_across_inspections_maintenance_repairs_and_schedule(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $equipment = $this->createEquipment('Operational');
+        $equipment->update(['commission_date' => today()]);
+        Inspection::query()->create([
+            'equipment_id' => $equipment->id,
+            'reference_number' => 'PRIORITY-SYNC-INSP',
+            'inspection_date' => now(),
+            'inspector_name' => 'Test Inspector',
+            'inspection_type' => 'Annual',
+            'outcome' => 'Passed',
+        ]);
+        Maintenance::query()->create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'PRIORITY-SYNC-MAINT',
+            'maintenance_type' => 'Preventive service',
+            'priority' => 'Low',
+            'status' => 'Scheduled',
+            'start_date' => today()->addDays(5),
+        ]);
+        Maintenance::query()->create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'PRIORITY-SYNC-REPAIR',
+            'maintenance_type' => 'Pump repair',
+            'priority' => 'Low',
+            'reported_issue' => 'Pressure leak',
+            'status' => 'Scheduled',
+            'start_date' => today()->addDays(7),
+        ]);
+        $this->actingAs($admin);
+
+        $this->get(route('inspections.index'))->assertViewHas('inspections', fn ($records) =>
+            $records->every(fn (Inspection $record) => $record->equipment_priority === 'Low')
+        );
+        $this->get(route('maintenances.index'))->assertViewHas('maintenances', fn ($records) =>
+            $records->every(fn (Maintenance $record) => $record->display_priority === 'Low')
+        );
+        $this->get(route('repairs.index'))->assertViewHas('paginatedRecords', fn ($records) =>
+            $records->getCollection()->every(fn (array $record) => $record['priority'] === 'Low')
+        );
+        $this->get(route('schedule.index'))->assertViewHas('paginatedRecords', fn ($records) =>
+            $records->getCollection()->every(fn (array $record) => $record['priority'] === 'Low')
+        );
+
+        $equipment->update(['status' => 'Out of Service']);
+
+        $this->get(route('inspections.index'))->assertViewHas('inspections', fn ($records) =>
+            $records->every(fn (Inspection $record) => $record->equipment_priority === 'High')
+        );
+        $this->get(route('maintenances.index'))->assertViewHas('maintenances', fn ($records) =>
+            $records->every(fn (Maintenance $record) => $record->display_priority === 'High')
+        );
+        $this->get(route('repairs.index'))->assertViewHas('paginatedRecords', fn ($records) =>
+            $records->getCollection()->every(fn (array $record) => $record['priority'] === 'High')
+        );
+        $this->get(route('schedule.index'))->assertViewHas('paginatedRecords', fn ($records) =>
+            $records->getCollection()->every(fn (array $record) => $record['priority'] === 'High')
+        );
+    }
+
+    public function test_high_priority_equipment_is_scheduled_for_inspection_within_one_week(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $automatic = $this->createEquipment('Operational');
+        $automatic->update(['commission_date' => today()->subMonthNoOverflow()->subDays(15)]);
+        $rescheduled = $this->createEquipment('Operational');
+        $rescheduled->update([
+            'commission_date' => today()->subMonthNoOverflow()->subDays(15),
+            'next_inspection_date' => today()->addDays(30),
+        ]);
+        $earlier = $this->createEquipment('Operational');
+        $earlier->update([
+            'commission_date' => today()->subMonthNoOverflow()->subDays(15),
+            'next_inspection_date' => today()->addDays(3),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('schedule.index'))
+            ->assertOk()
+            ->assertViewHas('paginatedRecords', function ($records) use ($automatic, $rescheduled, $earlier): bool {
+                $rows = $records->getCollection()->keyBy('record');
+                $oneWeekFromToday = today()->addWeek()->format('M d, Y');
+
+                return ($rows[$automatic->asset_code]['date'] ?? null) === $oneWeekFromToday
+                    && ($rows[$automatic->asset_code]['priority'] ?? null) === 'High'
+                    && ($rows[$rescheduled->asset_code]['date'] ?? null) === $oneWeekFromToday
+                    && ($rows[$earlier->asset_code]['date'] ?? null) === today()->addDays(3)->format('M d, Y');
+            });
+
+                $this->get(route('inspections.index'))
+                    ->assertOk()
+                    ->assertViewHas('priorityInspectionSchedule', function ($records) use ($automatic, $rescheduled, $earlier): bool {
+                    $rows = $records->keyBy(fn (array $record) => $record['equipment']->id);
+                    $oneWeekFromToday = today()->addWeek()->format('M d, Y');
+
+                    return ($rows[$automatic->id]['date'] ?? null)?->format('M d, Y') === $oneWeekFromToday
+                        && ($rows[$rescheduled->id]['date'] ?? null)?->format('M d, Y') === $oneWeekFromToday
+                        && ($rows[$earlier->id]['date'] ?? null)?->format('M d, Y') === today()->addDays(3)->format('M d, Y');
+                    });
+    }
+
+    public function test_dashboard_cards_and_maintenance_filters_show_due_records(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $overdueEquipment = $this->createEquipment('Operational');
+        $soonEquipment = $this->createEquipment('Operational');
+        $overdueEquipment->update(['equipment_name' => 'Overdue equipment']);
+        $soonEquipment->update(['equipment_name' => 'Due soon equipment']);
+        $overdue = Maintenance::query()->create([
+            'equipment_id' => $overdueEquipment->id,
+            'request_number' => 'DUE-OVERDUE-01',
+            'maintenance_type' => 'Preventive service',
+            'status' => 'Scheduled',
+            'start_date' => today()->subDays(40),
+        ]);
+        Maintenance::query()->create([
+            'equipment_id' => $soonEquipment->id,
+            'request_number' => 'DUE-SOON-01',
+            'maintenance_type' => 'Preventive service',
+            'status' => 'Scheduled',
+            'start_date' => today()->addDays(5),
+        ]);
+        Maintenance::query()->create([
+            'equipment_id' => $overdueEquipment->id,
+            'request_number' => 'DUE-COMPLETED-01',
+            'maintenance_type' => 'Preventive service',
+            'status' => 'Completed',
+            'start_date' => today()->subDays(50),
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('Total Equipment')
+            ->assertSee('Total Users')
+            ->assertSee('Active Users')
+            ->assertSee('High Priority')
+            ->assertSee('Medium Priority')
+            ->assertSee('Low Priority')
+            ->assertViewHas('overdueMaintenanceCount', 1)
+            ->assertViewHas('maintenanceDueSoonCount', 1);
+
+        $this->get(route('maintenances.index', ['due' => 'overdue']))
+            ->assertOk()
+            ->assertViewHas('maintenances', function ($records): bool {
+                return $records->contains('request_number', 'DUE-OVERDUE-01')
+                    && ! $records->contains('request_number', 'DUE-SOON-01')
+                    && ! $records->contains('request_number', 'DUE-COMPLETED-01');
+            });
+
+        $this->get('/dashboard?priority_filter=High')
+            ->assertOk()
+            ->assertViewHas('priorityRecords', function ($records) use ($overdueEquipment, $soonEquipment): bool {
+                return $records->contains(fn (array $record) => $record['equipment']->is($overdueEquipment))
+                    && ! $records->contains(fn (array $record) => $record['equipment']->is($soonEquipment));
+            });
+    }
+
+    public function test_completed_maintenance_requires_completion_date_and_work_details(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
+        $equipment = $this->createEquipment('Operational');
+
+        $this->actingAs($admin)
+            ->from('/maintenances/create')
+            ->post(route('maintenances.store'), [
+                'equipment_id' => $equipment->id,
+                'request_number' => 'COMPLETE-REQUIRED-01',
+                'maintenance_type' => 'Preventive',
+                'priority' => 'High',
+                'status' => 'Completed',
+            ])
+            ->assertSessionHasErrors(['completion_date', 'action_taken']);
+    }
+
     public function test_under_maintenance_equipment_can_be_recorded_and_released_from_maintenance(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'TEST-OFFICE']);
         $equipment = $this->createEquipment('Under Maintenance');
+        $equipment->update(['maintenance_interval_days' => 90]);
 
         $this->actingAs($admin)
             ->get('/maintenances')
@@ -196,11 +426,13 @@ class EquipmentStatusScheduleTest extends TestCase
             ->assertSessionHas('success', 'Maintenance record saved and equipment status updated successfully.');
 
         $this->assertDatabaseHas('equipment', ['id' => $equipment->id, 'status' => 'Operational']);
-        $this->assertDatabaseHas('maintenances', [
-            'equipment_id' => $equipment->id,
-            'maintenance_type' => 'Pump service',
-            'status' => 'Completed',
-        ]);
+        $this->assertSame(today()->toDateString(), $equipment->fresh()->last_maintenance_date->toDateString());
+        $completedMaintenance = Maintenance::query()
+            ->where('equipment_id', $equipment->id)
+            ->where('maintenance_type', 'Pump service')
+            ->firstOrFail();
+        $this->assertSame('Completed', $completedMaintenance->status);
+        $this->assertSame(today()->addDays(90)->toDateString(), $completedMaintenance->next_recommended_maintenance_date->toDateString());
         $this->assertDatabaseHas('equipment_status_histories', [
             'equipment_id' => $equipment->id,
             'old_status' => 'Under Maintenance',

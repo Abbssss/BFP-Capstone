@@ -53,6 +53,152 @@ document.querySelectorAll('dialog.app-modal[data-open-on-load="true"]').forEach(
     }
 });
 
+document.querySelectorAll('[data-pending-status-select]').forEach((select) => {
+    const dialog = select.closest('dialog');
+    const completionFields = dialog?.querySelectorAll('[data-completion-fields]');
+    const syncCompletionFields = () => {
+        const isCompleted = select.value === 'Completed';
+        completionFields?.forEach((field) => {
+            field.hidden = !isCompleted;
+            const input = field.querySelector('input, textarea');
+            if (input) {
+                input.required = isCompleted;
+            }
+        });
+    };
+
+    syncCompletionFields();
+    select.addEventListener('change', syncCompletionFields);
+});
+
+document.querySelectorAll('[data-searchable-equipment]').forEach((select, index) => {
+    const wrapper = select.closest('[data-equipment-select-search-wrapper]');
+    const searchInput = wrapper?.querySelector('[data-equipment-select-search]');
+    const emptyMessage = wrapper?.querySelector('[data-equipment-select-empty]');
+
+    if (!wrapper || !searchInput || !emptyMessage) {
+        return;
+    }
+
+    const listbox = document.createElement('div');
+    const listboxId = `equipment-options-${index + 1}`;
+    listbox.id = listboxId;
+    listbox.className = 'equipment-select-options';
+    listbox.setAttribute('role', 'listbox');
+    listbox.hidden = true;
+    emptyMessage.hidden = true;
+    listbox.append(emptyMessage);
+    wrapper.append(listbox);
+
+    searchInput.hidden = false;
+    searchInput.required = true;
+    searchInput.setAttribute('role', 'combobox');
+    searchInput.setAttribute('aria-autocomplete', 'list');
+    searchInput.setAttribute('aria-haspopup', 'listbox');
+    searchInput.setAttribute('aria-expanded', 'false');
+    searchInput.setAttribute('aria-controls', listboxId);
+    select.required = false;
+    select.hidden = true;
+
+    const selectedOption = select.selectedOptions[0];
+    if (selectedOption?.value) {
+        searchInput.value = selectedOption.textContent.trim();
+    }
+
+    let activeIndex = -1;
+
+    const closeListbox = () => {
+        listbox.hidden = true;
+        searchInput.setAttribute('aria-expanded', 'false');
+        searchInput.removeAttribute('aria-activedescendant');
+        activeIndex = -1;
+    };
+
+    const chooseOption = (option) => {
+        select.value = option.value;
+        searchInput.value = option.textContent.trim();
+        searchInput.setCustomValidity('');
+        closeListbox();
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const renderOptions = () => {
+        const term = searchInput.value.trim().toLocaleLowerCase();
+        listbox.querySelectorAll('[role="option"]').forEach((option) => option.remove());
+
+        const matches = [...select.options].filter((option) =>
+            option.value && option.textContent.trim().toLocaleLowerCase().includes(term)
+        );
+
+        matches.forEach((option, optionIndex) => {
+            const result = document.createElement('div');
+            result.id = `${listboxId}-option-${optionIndex}`;
+            result.className = 'equipment-select-option';
+            result.setAttribute('role', 'option');
+            result.setAttribute('aria-selected', String(option.value === select.value));
+            result.dataset.equipmentId = option.value;
+            result.textContent = option.textContent.trim();
+            result.addEventListener('mousedown', (event) => event.preventDefault());
+            result.addEventListener('click', () => chooseOption(option));
+            listbox.insertBefore(result, emptyMessage);
+        });
+
+        emptyMessage.hidden = matches.length > 0;
+        listbox.hidden = false;
+        searchInput.setAttribute('aria-expanded', 'true');
+        activeIndex = -1;
+        searchInput.removeAttribute('aria-activedescendant');
+    };
+
+    searchInput.addEventListener('focus', renderOptions);
+    searchInput.addEventListener('input', () => {
+        if (select.value) {
+            select.value = '';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        searchInput.setCustomValidity('Select an equipment item from the list.');
+        renderOptions();
+    });
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (listbox.hidden) {
+                renderOptions();
+            }
+            const options = [...listbox.querySelectorAll('[role="option"]')];
+            if (options.length) {
+                if (activeIndex < 0) {
+                    activeIndex = event.key === 'ArrowDown' ? 0 : options.length - 1;
+                } else {
+                    activeIndex = event.key === 'ArrowDown'
+                        ? (activeIndex + 1) % options.length
+                        : (activeIndex - 1 + options.length) % options.length;
+                }
+                searchInput.setAttribute('aria-activedescendant', options[activeIndex].id);
+                options.forEach((option, optionIndex) => {
+                    option.classList.toggle('active', optionIndex === activeIndex);
+                });
+                options[activeIndex].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (event.key === 'Enter' && activeIndex >= 0 && !listbox.hidden) {
+            event.preventDefault();
+            const option = listbox.querySelectorAll('[role="option"]')[activeIndex];
+            const selected = [...select.options].find((item) => item.value === option.dataset.equipmentId);
+            if (selected) {
+                chooseOption(selected);
+            }
+        } else if (event.key === 'Escape') {
+            closeListbox();
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (event.target instanceof Node && !wrapper.contains(event.target)) {
+            closeListbox();
+        }
+    });
+});
+
 const syncMaintenanceAssignee = (equipmentSelect, useEquipmentAssignee = false) => {
     const form = equipmentSelect.closest('form');
     const field = form?.querySelector('[data-equipment-assignee-field]');

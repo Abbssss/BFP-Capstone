@@ -24,7 +24,7 @@ class SettingsPageTest extends TestCase
             ->assertSee('id="account-settings"', false)
             ->assertSee('href="'.route('dashboard').'"', false)
             ->assertSee('href="'.route('personnel.index').'"', false)
-            ->assertSee('href="'.route('risk.index').'"', false)
+            ->assertDontSee('Risk model')
             ->assertSee('href="'.route('reports.index').'"', false)
             ->assertSee('Notifications')
             ->assertSee('Not configured')

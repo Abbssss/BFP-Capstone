@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Services\PdfReportExporter;
 use App\Services\ReportDataService;
 use App\Services\ExcelReportExporter;
+use App\Models\Equipment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,13 +16,14 @@ class ReportController extends Controller
     public function index(Request $request, ReportDataService $reports): View
     {
         $filters = $this->filters($request);
-        $data = $reports->report($filters['report'], $filters['period'], $filters['status'], $filters['group_by']);
+        $data = $reports->report($filters['report'], $filters['period'], $filters['status'], $filters['group_by'], $filters['office_code']);
 
         return view('reports.index', [
             ...$data,
             ...$filters,
-            'reportOptions' => ReportDataService::REPORTS,
+            'reportOptions' => $this->availableReports($request),
             'groupOptions' => $this->groupOptions($filters['report']),
+            'officeCodes' => $this->officeCodes(),
         ]);
     }
 
@@ -34,7 +37,7 @@ class ReportController extends Controller
     {
         abort_unless(in_array($format, ['pdf', 'excel', 'csv'], true), 404);
         $filters = $this->filters($request);
-        $data = $reports->report($filters['report'], $filters['period'], $filters['status'], $filters['group_by']);
+        $data = $reports->report($filters['report'], $filters['period'], $filters['status'], $filters['group_by'], $filters['office_code']);
         $filename = 'fire-pmis-'.$filters['report'].'-'.now()->format('Ymd-His');
 
         if ($format === 'pdf') {
@@ -72,25 +75,58 @@ class ReportController extends Controller
     private function filters(Request $request): array
     {
         $validated = $request->validate([
-            'report' => ['nullable', 'in:user-activity,equipment-registry,maintenance-summary,inspection-summary,ai-predictions,audit-activity'],
+            'report' => ['nullable', 'in:user-activity,equipment-registry,maintenance-summary,inspection-summary,audit-activity'],
             'period' => ['nullable', 'in:quarter,30-days,year,all'],
             'status' => ['nullable', 'string', 'max:100'],
             'group_by' => ['nullable', 'in:role,status,category,month'],
+            'office_code' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $report = $validated['report'] ?? 'user-activity';
+        $availableReports = $this->availableReports($request);
+        $defaultReport = $request->user()->role === 'super_admin' ? 'user-activity' : 'equipment-registry';
+        $report = $validated['report'] ?? $defaultReport;
+        abort_unless(array_key_exists($report, $availableReports), 403);
         $groupOptions = $this->groupOptions($report);
         $groupBy = $validated['group_by'] ?? array_key_first($groupOptions);
         if (! array_key_exists($groupBy, $groupOptions)) {
             $groupBy = array_key_first($groupOptions);
         }
 
+        $effectiveOfficeCode = $request->user()->role === 'super_admin'
+            ? ($validated['office_code'] ?? '')
+            : ($request->user()->office_code ?: '');
+
         return [
             'report' => $report,
             'period' => $validated['period'] ?? 'quarter',
             'status' => $validated['status'] ?? '',
             'group_by' => $groupBy,
+            'office_code' => $effectiveOfficeCode !== '' ? $effectiveOfficeCode : null,
         ];
+    }
+
+    private function availableReports(Request $request): array
+    {
+        if ($request->user()->role === 'super_admin') {
+            return ReportDataService::REPORTS;
+        }
+
+        return array_diff_key(ReportDataService::REPORTS, [
+            'user-activity' => true,
+            'audit-activity' => true,
+        ]);
+    }
+
+    private function officeCodes(): array
+    {
+        return Equipment::query()->whereNotNull('office_code')->where('office_code', '<>', '')
+            ->distinct()->pluck('office_code')
+            ->merge(User::query()->whereNotNull('office_code')->where('office_code', '<>', '')->distinct()->pluck('office_code'))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     private function groupOptions(string $report): array
@@ -100,7 +136,6 @@ class ReportController extends Controller
             'equipment-registry' => ['category' => 'Category', 'status' => 'Status', 'month' => 'Month'],
             'maintenance-summary' => ['category' => 'Maintenance type', 'status' => 'Status', 'month' => 'Month'],
             'inspection-summary' => ['category' => 'Inspection type', 'status' => 'Outcome', 'month' => 'Month'],
-            'ai-predictions' => ['category' => 'Risk classification', 'month' => 'Month'],
             default => ['month' => 'Month'],
         };
     }

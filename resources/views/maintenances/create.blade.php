@@ -11,12 +11,16 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Equipment</label>
-                            <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-assignee-equipment-select>
-                                <option value="">Select equipment</option>
-                                @foreach($equipment as $item)
-                                    <option value="{{ $item->id }}" data-assigned-personnel-id="{{ $item->assigned_personnel }}" data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="equipment-select-search-wrapper" data-equipment-select-search-wrapper>
+                                <input type="search" aria-label="Search and select equipment" placeholder="Select or search equipment..." data-equipment-select-search hidden>
+                                <select name="equipment_id" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required data-assignee-equipment-select data-searchable-equipment>
+                                    <option value="">Select equipment</option>
+                                    @foreach($equipment as $item)
+                                        <option value="{{ $item->id }}" data-assigned-personnel-id="{{ $item->assigned_personnel }}" data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
+                                    @endforeach
+                                </select>
+                                <small data-equipment-select-empty hidden>No equipment matches your search.</small>
+                            </div>
                         </div>
                         <div data-equipment-assignee-field hidden>
                             <label class="block text-sm font-medium text-gray-700" for="maintenance-assigned-to">Who will do the job?</label>
@@ -29,10 +33,7 @@
                             <small data-equipment-assigned-personnel></small>
                             @error('assigned_to_id')<span class="text-red-700 text-sm">{{ $message }}</span>@enderror
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Request Number</label>
-                            <input type="text" name="request_number" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
-                        </div>
+                        <div><label class="block text-sm font-medium text-gray-700">Request Number</label><p>Generated when saved: first 3 equipment-name letters-MM-DD-YYYY-sequence.</p></div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Maintenance Type</label>
                             <input type="text" name="maintenance_type" value="{{ old('maintenance_type', $defaultMaintenanceType) }}" class="mt-1 w-full border-gray-300 rounded-md shadow-sm" required>

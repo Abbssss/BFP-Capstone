@@ -15,11 +15,7 @@
                     <input type="hidden" name="_form" value="{{ $workRecordKind === 'Repair' ? 'complete-equipment-repair' : 'complete-equipment-maintenance' }}">
                     <input type="hidden" name="_equipment_id" value="{{ old('_equipment_id') }}">
                     <div class="app-modal-grid">
-                        <div class="app-modal-field">
-                            <label for="equipment-work-request">Request number</label>
-                            <input id="equipment-work-request" name="request_number" value="{{ old('request_number') }}" required>
-                            @error('request_number')<span class="app-modal-error">{{ $message }}</span>@enderror
-                        </div>
+                        <div class="app-modal-field"><label>Request number</label><p>Generated when saved: first 3 equipment-name letters-MM-DD-YYYY-sequence.</p></div>
                         <div class="app-modal-field">
                             <label for="equipment-work-type">Work type</label>
                             <input id="equipment-work-type" name="maintenance_type" value="{{ old('maintenance_type', $workRecordKind === 'Repair' ? 'Repair' : 'Preventive maintenance') }}" required>

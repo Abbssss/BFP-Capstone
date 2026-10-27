@@ -52,6 +52,9 @@
                         @foreach($types as $type)<option value="{{ $type }}" @selected(request('category') === $type)>{{ $type }}</option>@endforeach
                     </select>
                     <button type="submit" class="ops-button secondary small">Filter</button>
+                    @if(request()->filled('search'))
+                        <a class="ops-button secondary small" href="{{ route('maintenances.index', request()->except(['search', 'page'])) }}">Clear search</a>
+                    @endif
                 </div>
                 <button type="button" class="ops-button small" data-modal-open="maintenance-create-modal">＋ Add new</button>
             </form>
@@ -63,9 +66,14 @@
                         <tr>
                             <td>{{ $maintenance->equipment?->equipment_name ?? '—' }}</td><td>{{ $maintenance->maintenance_type }}</td><td>{{ $maintenance->assignedTo?->name ?? $maintenance->equipment?->assignedUser?->name ?? ($maintenance->technician_name ?: 'Unassigned') }}</td>
                             <td>{{ $maintenance->next_recommended_maintenance_date?->format('M d, Y') ?? $maintenance->start_date?->format('M d, Y') ?? '—' }}</td>
-                            <td><span class="ops-pill {{ in_array(strtolower($maintenance->priority), ['high', 'critical'], true) ? 'danger' : (strtolower($maintenance->priority) === 'medium' ? 'warning' : 'neutral') }}">{{ $maintenance->priority }}</span></td>
+                            <td><span class="ops-pill {{ in_array(strtolower($maintenance->display_priority), ['high', 'critical'], true) ? 'danger' : (strtolower($maintenance->display_priority) === 'medium' ? 'warning' : 'neutral') }}">{{ $maintenance->display_priority }}</span></td>
                             <td><span class="ops-pill {{ strtolower($maintenance->status) === 'completed' ? '' : (in_array(strtolower($maintenance->status), ['in progress', 'scheduled'], true) ? 'warning' : 'neutral') }}">{{ $maintenance->status }}</span></td>
-                            <td><a href="{{ route('maintenances.show', $maintenance) }}">View</a></td>
+                            <td>
+                                <button type="button" class="equipment-action" data-modal-open="maintenance-record-{{ $maintenance->id }}">View</button>
+                                @if($maintenance->status === 'Pending')
+                                    <button type="button" class="equipment-action" data-modal-open="maintenance-status-{{ $maintenance->id }}">Update</button>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="ops-empty">No maintenance tasks match these filters.</td></tr>
@@ -76,6 +84,22 @@
             <div class="ops-table-footer"><span>Showing {{ $maintenances->firstItem() ?? 0 }}–{{ $maintenances->lastItem() ?? 0 }} of {{ $maintenances->total() }} records</span><div class="ops-pagination">{{ $maintenances->links() }}</div></div>
         </section>
     </div>
+    @foreach($maintenances as $maintenance)
+        @include('operations.record-view-modal', [
+            'modalId' => 'maintenance-record-'.$maintenance->id,
+            'recordType' => str_contains(strtolower($maintenance->maintenance_type), 'repair')
+                || filled($maintenance->reported_issue) ? 'Repair' : 'Maintenance',
+            'record' => $maintenance,
+        ])
+        @if($maintenance->status === 'Pending')
+            @include('operations.pending-status-modal', [
+                'modalId' => 'maintenance-status-'.$maintenance->id,
+                'recordType' => 'Maintenance',
+                'record' => $maintenance,
+                'statusUrl' => route('maintenances.status', $maintenance),
+            ])
+        @endif
+    @endforeach
     @include('operations.equipment-work-modal', ['workRecordKind' => 'Maintenance'])
     <dialog id="maintenance-create-modal" class="app-modal" data-open-on-load="{{ $errors->any() && old('_form') === 'create-maintenance' ? 'true' : 'false' }}">
         <div class="app-modal-panel">
@@ -90,15 +114,19 @@
                     <div class="app-modal-grid">
                         <div class="app-modal-field">
                             <label for="maintenance-equipment">Equipment</label>
-                            <select id="maintenance-equipment" name="equipment_id" required data-assignee-equipment-select>
-                                <option value="">Select equipment</option>
-                                @foreach($equipmentOptions as $item)
-                                    <option value="{{ $item->id }}"
-                                        data-assigned-personnel-id="{{ $item->assigned_personnel }}"
-                                        data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}"
-                                        @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="equipment-select-search-wrapper" data-equipment-select-search-wrapper>
+                                <input type="search" aria-label="Search and select equipment" placeholder="Select or search equipment..." data-equipment-select-search hidden>
+                                <select id="maintenance-equipment" name="equipment_id" required data-assignee-equipment-select data-searchable-equipment>
+                                    <option value="">Select equipment</option>
+                                    @foreach($equipmentOptions as $item)
+                                        <option value="{{ $item->id }}"
+                                            data-assigned-personnel-id="{{ $item->assigned_personnel }}"
+                                            data-assigned-personnel-name="{{ $item->assignedUser?->name ?? '' }}"
+                                            @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
+                                    @endforeach
+                                </select>
+                                <small data-equipment-select-empty hidden>No equipment matches your search.</small>
+                            </div>
                             @error('equipment_id')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="app-modal-field" data-equipment-assignee-field hidden>
@@ -112,11 +140,7 @@
                             <small data-equipment-assigned-personnel></small>
                             @error('assigned_to_id')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
-                        <div class="app-modal-field">
-                            <label for="maintenance-request">Request number</label>
-                            <input id="maintenance-request" name="request_number" value="{{ old('request_number') }}" required>
-                            @error('request_number')<span class="app-modal-error">{{ $message }}</span>@enderror
-                        </div>
+                        <div class="app-modal-field"><label>Request number</label><p>Generated when saved: first 3 equipment-name letters-MM-DD-YYYY-sequence.</p></div>
                         <div class="app-modal-field">
                             <label for="maintenance-type">Maintenance type</label>
                             <input id="maintenance-type" name="maintenance_type" value="{{ old('maintenance_type', 'Preventive') }}" required>

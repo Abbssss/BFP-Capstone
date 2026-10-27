@@ -6,12 +6,13 @@
             <div class="ops-card-heading">Search results for “{{ $term }}”</div>
             <div class="ops-card-body">
                 @forelse($results as $result)
-                    <a class="app-search-result" href="{{ $result['url'] }}">
+                    <article class="app-search-result">
                         <span class="app-search-result-type">{{ $result['type'] }}</span>
                         <strong>{{ $result['title'] }}</strong>
                         <span>{{ $result['detail'] }}</span>
                         <time datetime="{{ $result['date']?->toISOString() }}">{{ $result['date']?->format('M d, Y') }}</time>
-                    </a>
+                        <a class="ops-button secondary small app-search-result-action" href="{{ $result['url'] }}">View record</a>
+                    </article>
                 @empty
                     <p class="app-search-empty">No matching records were found in the modules available to your account.</p>
                 @endforelse

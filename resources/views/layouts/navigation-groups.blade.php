@@ -13,7 +13,8 @@
     $isSuperAdmin = $currentRole === 'super_admin';
     $equipmentRoutes = ['equipment.*', 'inspections.*', 'maintenances.*', 'repairs.*', 'schedule.*'];
     $userRoutes = ['users.*', 'personnel.*', 'roles.permissions'];
-    $reportRoutes = ['reports.*', 'risk.*', 'defects.*', 'audit.*'];
+    $reportRoutes = ['reports.*', 'defects.*', 'audit.*', 'approvals.*'];
+    $canReviewApprovals = $isSuperAdmin || ($currentRole === 'admin' && $canAccess('approvals'));
     $equipmentOpen = request()->routeIs(...$equipmentRoutes);
     $usersOpen = request()->routeIs(...$userRoutes);
     $reportsOpen = request()->routeIs(...$reportRoutes);
@@ -47,13 +48,13 @@
     </details>
 @endif
 
-@if($canAccess('reports') || $canAccess('ai_predictions') || $canAccess('defect_reports') || ($isSuperAdmin && $canAccess('audit_logs')))
+@if($canAccess('reports') || $canAccess('defect_reports') || ($isSuperAdmin && $canAccess('audit_logs')) || $canReviewApprovals)
     <details class="{{ $navGroupClass }}" @if($reportsOpen) open @endif>
         <summary class="{{ $navGroupSummaryClass }}"><span class="{{ $navIconClass }}" aria-hidden="true">▤</span>Reports<span class="{{ $navChevronClass }}" aria-hidden="true">›</span></summary>
         <div class="{{ $navChildClass }}">
             @if($canAccess('reports'))<a class="{{ $navLinkClass }} {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">Reports</a>@endif
-            @if($canAccess('ai_predictions'))<a class="{{ $navLinkClass }} {{ request()->routeIs('risk.*') ? 'active' : '' }}" href="{{ route('risk.index') }}">Predictions</a>@endif
             @if($canAccess('defect_reports'))<a class="{{ $navLinkClass }} {{ request()->routeIs('defects.*') ? 'active' : '' }}" href="{{ route('defects.index') }}">Defect Reports</a>@endif
+            @if($canReviewApprovals)<a class="{{ $navLinkClass }} {{ request()->routeIs('approvals.*') ? 'active' : '' }}" href="{{ route('approvals.index') }}">Approvals</a>@endif
             @if($isSuperAdmin && $canAccess('audit_logs'))<a class="{{ $navLinkClass }} {{ request()->routeIs('audit.*') ? 'active' : '' }}" href="{{ route('audit.index') }}">Audit Log</a>@endif
         </div>
     </details>

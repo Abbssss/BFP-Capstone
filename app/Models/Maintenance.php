@@ -17,7 +17,7 @@ class Maintenance extends Model
         'equipment_id', 'request_number', 'maintenance_type', 'priority', 'status', 'reported_issue',
         'diagnosis', 'action_taken', 'parts_replaced', 'maintenance_cost', 'start_date', 'completion_date',
         'technician_name', 'assigned_to_id', 'downtime_hours', 'maintenance_outcome', 'next_recommended_maintenance_date',
-        'supporting_document',
+        'supporting_document', 'notes', 'approval_status', 'approval_notes', 'reviewed_by_id', 'reviewed_at',
     ];
 
     public function equipment(): BelongsTo
@@ -28,5 +28,10 @@ class Maintenance extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by_id');
     }
 }

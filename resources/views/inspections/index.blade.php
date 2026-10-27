@@ -4,6 +4,27 @@
     <div class="ops-page">
         @if(session('success'))<div class="ops-flash" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="ops-flash" role="alert">Please review the highlighted fields and try again.</div>@endif
+        @if($priorityInspectionSchedule->isNotEmpty())
+            <section class="ops-card equipment-status-section">
+                <div class="ops-card-heading">High-priority inspections</div>
+                <div class="ops-table-scroll">
+                    <table class="ops-table">
+                        <thead><tr><th>Asset code</th><th>Equipment</th><th>Assigned to</th><th>Inspection date</th><th>Priority</th></tr></thead>
+                        <tbody>
+                            @foreach($priorityInspectionSchedule as $record)
+                                <tr>
+                                    <td>{{ $record['equipment']->asset_code }}</td>
+                                    <td>{{ $record['equipment']->equipment_name }}</td>
+                                    <td>{{ $record['equipment']->assignedUser?->name ?? 'Unassigned' }}</td>
+                                    <td>{{ $record['date']->format('M d, Y') }}</td>
+                                    <td><span class="ops-pill danger">{{ $record['priority'] }}</span></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
         @if($equipmentUnderInspection->isNotEmpty())
             <section class="ops-card equipment-status-section">
                 <div class="ops-card-heading">Equipment currently under inspection</div>
@@ -45,22 +66,31 @@
                         @foreach($types as $type)<option value="{{ $type }}" @selected(request('category') === $type)>{{ $type }}</option>@endforeach
                     </select>
                     <button type="submit" class="ops-button secondary small">Filter</button>
+                    @if(request()->filled('search'))
+                        <a class="ops-button secondary small" href="{{ route('inspections.index', request()->except(['search', 'page'])) }}">Clear search</a>
+                    @endif
                 </div>
                 <button type="button" class="ops-button small" data-modal-open="inspection-create-modal">＋ Add new</button>
             </form>
             <div class="ops-table-scroll">
                 <table class="ops-table">
-                    <thead><tr><th>Record</th><th>Type</th><th>Equipment</th><th>Inspector</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Record</th><th>Type</th><th>Equipment</th><th>Inspector</th><th>Date</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
                     @forelse($inspections as $inspection)
                         <tr>
                             <td>{{ $inspection->reference_number }}</td><td>{{ $inspection->inspection_type }}</td><td>{{ $inspection->equipment?->equipment_name ?? '—' }}</td><td>{{ $inspection->inspector_name }}</td>
                             <td>{{ $inspection->inspection_date?->format('M d, Y') ?? $inspection->inspection_date }}</td>
-                            <td><span class="ops-pill {{ $inspection->outcome === 'Failed' ? 'danger' : ($inspection->outcome === 'Passed' ? '' : 'warning') }}">{{ $inspection->outcome }}</span></td>
-                            <td><a href="{{ route('inspections.show', $inspection) }}">View</a></td>
+                            <td><span class="ops-pill {{ $inspection->equipment_priority === 'High' ? 'danger' : ($inspection->equipment_priority === 'Medium' ? 'warning' : 'neutral') }}">{{ $inspection->equipment_priority ?? '—' }}</span></td>
+                            <td><span class="ops-pill {{ $inspection->status === 'Pending' ? 'warning' : ($inspection->outcome === 'Failed' ? 'danger' : ($inspection->outcome === 'Passed' ? '' : 'warning')) }}">{{ $inspection->status === 'Pending' ? 'Pending' : $inspection->outcome }}</span></td>
+                            <td>
+                                <button type="button" class="equipment-action" data-modal-open="inspection-record-{{ $inspection->id }}">View</button>
+                                @if($inspection->status === 'Pending')
+                                    <button type="button" class="equipment-action" data-modal-open="inspection-status-{{ $inspection->id }}">Update</button>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="ops-empty">No inspection records match these filters.</td></tr>
+                        <tr><td colspan="8" class="ops-empty">No inspection records match these filters.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -68,6 +98,21 @@
             <div class="ops-table-footer"><span>Showing {{ $inspections->firstItem() ?? 0 }}–{{ $inspections->lastItem() ?? 0 }} of {{ $inspections->total() }} records</span><div class="ops-pagination">{{ $inspections->links() }}</div></div>
         </section>
     </div>
+    @foreach($inspections as $inspection)
+        @include('operations.record-view-modal', [
+            'modalId' => 'inspection-record-'.$inspection->id,
+            'recordType' => 'Inspection',
+            'record' => $inspection,
+        ])
+        @if($inspection->status === 'Pending')
+            @include('operations.pending-status-modal', [
+                'modalId' => 'inspection-status-'.$inspection->id,
+                'recordType' => 'Inspection',
+                'record' => $inspection,
+                'statusUrl' => route('inspections.status', $inspection),
+            ])
+        @endif
+    @endforeach
     <dialog id="complete-equipment-inspection-modal" class="app-modal equipment-view-modal"
         data-open-on-load="{{ $errors->any() && old('_form') === 'complete-equipment-inspection' ? 'true' : 'false' }}">
         <div class="app-modal-panel">
@@ -82,11 +127,7 @@
                     <input type="hidden" name="_equipment_id" value="{{ old('_equipment_id') }}">
                     <input type="hidden" name="equipment_id" value="{{ old('equipment_id', old('_equipment_id')) }}">
                     <div class="app-modal-grid">
-                        <div class="app-modal-field">
-                            <label for="complete-inspection-reference">Reference number</label>
-                            <input id="complete-inspection-reference" name="reference_number" value="{{ old('reference_number') }}" required>
-                            @error('reference_number')<span class="app-modal-error">{{ $message }}</span>@enderror
-                        </div>
+                        <div class="app-modal-field"><label>Reference number</label><p>Generated when saved: first 3 equipment-name letters-MM-DD-YYYY-sequence.</p></div>
                         <div class="app-modal-field">
                             <label for="complete-inspection-date">Inspection date</label>
                             <input id="complete-inspection-date" type="datetime-local" name="inspection_date" value="{{ old('inspection_date', now()->format('Y-m-d\\TH:i')) }}" required>
@@ -158,19 +199,19 @@
                     <div class="app-modal-grid">
                         <div class="app-modal-field">
                             <label for="inspection-equipment">Equipment</label>
-                            <select id="inspection-equipment" name="equipment_id" required>
-                                <option value="">Select equipment</option>
-                                @foreach($equipmentOptions as $item)
-                                    <option value="{{ $item->id }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="equipment-select-search-wrapper" data-equipment-select-search-wrapper>
+                                <input type="search" aria-label="Search and select equipment" placeholder="Select or search equipment..." data-equipment-select-search hidden>
+                                <select id="inspection-equipment" name="equipment_id" required data-searchable-equipment>
+                                    <option value="">Select equipment</option>
+                                    @foreach($equipmentOptions as $item)
+                                        <option value="{{ $item->id }}" @selected(old('equipment_id') == $item->id)>{{ $item->equipment_name }}</option>
+                                    @endforeach
+                                </select>
+                                <small data-equipment-select-empty hidden>No equipment matches your search.</small>
+                            </div>
                             @error('equipment_id')<span class="app-modal-error">{{ $message }}</span>@enderror
                         </div>
-                        <div class="app-modal-field">
-                            <label for="inspection-reference">Reference number</label>
-                            <input id="inspection-reference" name="reference_number" value="{{ old('reference_number') }}" required>
-                            @error('reference_number')<span class="app-modal-error">{{ $message }}</span>@enderror
-                        </div>
+                        <div class="app-modal-field"><label>Reference number</label><p>Generated when saved: first 3 equipment-name letters-MM-DD-YYYY-sequence.</p></div>
                         <div class="app-modal-field">
                             <label for="inspection-date">Inspection date</label>
                             <input id="inspection-date" type="datetime-local" name="inspection_date" value="{{ old('inspection_date', now()->format('Y-m-d\\TH:i')) }}" required>

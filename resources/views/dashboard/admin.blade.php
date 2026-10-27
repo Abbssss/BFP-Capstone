@@ -4,7 +4,6 @@
     <div class="ops-page admin-dashboard">
         <div class="admin-dashboard-intro">
             <div>
-                <span class="ops-eyebrow">Live data</span>
                 <h1>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ auth()->user()->name }}.</h1>
                 <p>Here is your station maintenance overview for today.</p>
             </div>
@@ -12,21 +11,21 @@
 
         <section class="admin-summary-grid" aria-label="Station summary">
             @foreach([
-                ['Total Equipment', $equipmentCount, 'All registered assets', '⬡', 'navy'],
-                ['Operational', $operationalCount, $readinessPercent.'% ready for service', '✓', 'green'],
-                ['Pending Maintenance', $pendingMaintenanceCount, 'Tasks to review', '⚒', 'gold'],
-                ['Due Today', $dueTodayCount, 'Maintenance tasks due today', '▣', 'blue'],
-                ['Overdue', $overdueMaintenanceCount, 'Requires attention', '△', 'red'],
-                ['High-Risk', $highRiskCount, 'Predicted risks', '✣', 'purple'],
-            ] as [$label, $value, $note, $icon, $color])
-                <article class="admin-summary-card {{ $color }}">
+                ['Overdue Maintenance', $overdueMaintenanceCount, 'Maintenance requires action', '△', 'red', route('maintenances.index', ['due' => 'overdue'])],
+                ['Maintenance Due Soon', $maintenanceDueSoonCount, 'Due within the warning period', '▣', 'blue', route('maintenances.index', ['due' => 'soon'])],
+                ['High Priority', $priorityCounts['High'], 'Schedule and inspection findings', '△', 'purple', route('dashboard', ['priority_filter' => 'High']).'#equipment-priority'],
+                ['Medium Priority', $priorityCounts['Medium'], 'Approaching due dates or findings', '◷', 'gold', route('dashboard', ['priority_filter' => 'Medium']).'#equipment-priority'],
+                ['Low Priority', $priorityCounts['Low'], 'Normal maintenance interval', '✓', 'green', route('dashboard', ['priority_filter' => 'Low']).'#equipment-priority'],
+                ['System Alerts', $systemAlertCount, 'Priority, overdue, and inspection alerts', '♧', 'navy', route('dashboard', ['priority_filter' => 'alerts']).'#equipment-priority'],
+            ] as [$label, $value, $note, $icon, $color, $target])
+                <a class="admin-summary-card {{ $color }}" href="{{ $target }}">
                     <span class="admin-summary-icon" aria-hidden="true">{{ $icon }}</span>
                     <div class="admin-summary-copy">
                         <span>{{ $label }}</span>
                         <strong>{{ number_format($value) }}</strong>
                         <small>{{ $note }}</small>
                     </div>
-                </article>
+                </a>
             @endforeach
         </section>
 
@@ -90,37 +89,37 @@
             </section>
         </div>
 
-        <div class="admin-risk-layout">
-            <section class="ops-card admin-panel admin-risk-panel">
+        <div class="admin-priority-layout" id="equipment-priority">
+            <section class="ops-card admin-panel admin-priority-panel">
                 <div class="ops-card-heading">
-                    <span>Risk overview</span>
-                    <a href="{{ route('risk.index') }}">View all predictions →</a>
+                    <span>Equipment priority{{ $priorityFilter !== 'all' ? ' · '.ucfirst($priorityFilter) : '' }}</span>
+                    <a href="{{ route('equipment.index') }}">View equipment →</a>
                 </div>
-                <div class="admin-risk-counts">
-                    @foreach($riskCounts as $label => $total)
+                <div class="admin-priority-counts">
+                    @foreach($priorityCounts as $label => $total)
                         @php
-                            $riskColor = $label === 'High Risk' ? 'danger' : ($label === 'Medium Risk' ? 'warning' : '');
+                            $priorityColor = $label === 'High' ? 'danger' : ($label === 'Medium' ? 'warning' : '');
                         @endphp
-                        <div><strong>{{ number_format($total) }}</strong><span class="ops-pill {{ $riskColor }}">{{ str_replace(' Risk', '', $label) }}</span></div>
+                        <div><strong>{{ number_format($total) }}</strong><span class="ops-pill {{ $priorityColor }}">{{ $label }} priority</span></div>
                     @endforeach
-                    @if($latestModel)
-                        <small>Decision Tree · {{ $latestModel->version_name }}</small>
-                    @endif
                 </div>
                 <div class="ops-table-scroll">
-                    <table class="ops-table admin-risk-table">
-                        <thead><tr><th>Equipment</th><th>Risk</th><th>Confidence</th><th>Prediction date</th><th>Action</th></tr></thead>
+                    <table class="ops-table admin-priority-table">
+                        <thead><tr><th>Equipment</th><th>Priority</th><th>Reason</th><th>Next due date</th><th>Action</th></tr></thead>
                         <tbody>
-                        @forelse($latestPredictions->take(5) as $prediction)
+                        @forelse($priorityRecords as $record)
+                            @php
+                                $priorityEquipment = $record['equipment'];
+                            @endphp
                             <tr>
-                                <td><strong>{{ $prediction->equipment?->equipment_name ?? 'Equipment record unavailable' }}</strong></td>
-                                <td><span class="ops-pill {{ $prediction->prediction_label === 'High Risk' ? 'danger' : ($prediction->prediction_label === 'Medium Risk' ? 'warning' : '') }}">{{ $prediction->prediction_label }}</span></td>
-                                <td>{{ number_format((float) $prediction->confidence * 100, 1) }}%</td>
-                                <td>{{ $prediction->prediction_timestamp?->format('M d, Y') ?? '—' }}</td>
-                                <td><a href="{{ route('risk.index') }}">View</a></td>
+                                <td><strong>{{ $priorityEquipment->equipment_name }}</strong></td>
+                                <td><span class="ops-pill {{ $record['priority'] === 'High' ? 'danger' : ($record['priority'] === 'Medium' ? 'warning' : '') }}">{{ $record['priority'] }}</span></td>
+                                <td>{{ $record['reason'] }}</td>
+                                <td>{{ $record['due_date']?->format('M d, Y') ?? '—' }}</td>
+                                <td><a href="{{ route('equipment.show', $priorityEquipment) }}">View</a></td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="ops-empty">No predictions are available yet.</td></tr>
+                            <tr><td colspan="5" class="ops-empty">{{ $priorityFilter === 'all' ? 'No equipment records are available.' : 'No equipment records match this filter.' }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
@@ -128,37 +127,30 @@
             </section>
 
             <aside class="ops-card admin-recommendation">
-                <div class="admin-recommendation-heading"><span aria-hidden="true">✣</span> Risk follow-up</div>
-                @if($featuredPrediction)
+                <div class="admin-recommendation-heading"><span aria-hidden="true">△</span> Priority follow-up</div>
+                @if($featuredPriority)
                     @php
-                        $featuredLabel = $featuredPrediction->prediction_label;
-                        $featuredAction = match ($featuredLabel) {
-                            'High Risk' => 'Arrange an equipment inspection before the next operational deployment.',
-                            'Medium Risk' => 'Schedule a condition check and monitor the next service interval.',
-                            default => 'Continue routine inspections and scheduled preventive maintenance.',
-                        };
-                        $featuredConfidence = (float) $featuredPrediction->confidence;
+                        $featuredEquipment = $featuredPriority['equipment'];
                     @endphp
                     <div class="admin-recommendation-top">
                         <div>
-                            <span class="ops-pill {{ $featuredLabel === 'High Risk' ? 'danger' : ($featuredLabel === 'Medium Risk' ? 'warning' : '') }}">{{ $featuredLabel }}</span>
-                            <h2>{{ $featuredPrediction->equipment?->equipment_name ?? 'Equipment record unavailable' }}</h2>
-                            <small>Property No. {{ $featuredPrediction->equipment?->asset_code ?? '—' }}</small>
+                            <span class="ops-pill {{ $featuredPriority['priority'] === 'High' ? 'danger' : ($featuredPriority['priority'] === 'Medium' ? 'warning' : '') }}">{{ $featuredPriority['priority'] }} priority</span>
+                            <h2>{{ $featuredEquipment->equipment_name }}</h2>
+                            <small>Asset code {{ $featuredEquipment->asset_code }}</small>
                         </div>
-                        <div class="admin-risk-score"><small>Model confidence</small><strong>{{ number_format($featuredConfidence * 100, 0) }}%</strong></div>
                     </div>
                     <div class="admin-recommendation-detail">
-                        <small>Recommended follow-up</small>
-                        <p>{{ $featuredAction }}</p>
-                        <span>Prediction generated {{ $featuredPrediction->prediction_timestamp?->format('M d, Y · H:i') ?? 'date unavailable' }}</span>
+                        <small>Reason and due date</small>
+                        <p>{{ $featuredPriority['reason'] }}</p>
+                        <span>Scheduled date: {{ $featuredPriority['due_date']?->format('M d, Y') ?? 'Not set' }}</span>
                     </div>
-                    <p class="admin-recommendation-note">For review by authorized personnel. Confirm equipment condition before taking action.</p>
-                    <a class="ops-button small" href="{{ route('risk.index') }}">Review prediction</a>
+                    <p class="admin-recommendation-note">Priority is derived from recorded maintenance schedules, inspection findings, and equipment status.</p>
+                    <a class="ops-button small" href="{{ route('equipment.show', $featuredEquipment) }}">Review equipment</a>
                 @else
                     <div class="admin-recommendation-empty">
-                        <strong>No prediction to review</strong>
-                        <span>Run a risk assessment to see equipment follow-up guidance here.</span>
-                        <a class="ops-button small" href="{{ route('risk.index') }}">Open Predictions</a>
+                        <strong>No equipment to review</strong>
+                        <span>Equipment priorities will appear when equipment records are available.</span>
+                        <a class="ops-button small" href="{{ route('equipment.index') }}">Open equipment</a>
                     </div>
                 @endif
             </aside>

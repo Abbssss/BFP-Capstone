@@ -19,11 +19,6 @@
                     <span class="ops-tab disabled" aria-disabled="true" title="User and role management is not enabled for your role"><span aria-hidden="true">♙</span>User &amp; Role <small>Unavailable</small></span>
                 @endif
                 <span class="ops-tab disabled" aria-disabled="true" title="Notification preferences are not available yet"><span aria-hidden="true">♧</span>Notifications <small>Not configured</small></span>
-                @if($canViewRiskModel)
-                    <a class="ops-tab" href="{{ route('risk.index') }}"><span aria-hidden="true">✧</span>Risk model</a>
-                @else
-                    <span class="ops-tab disabled" aria-disabled="true" title="Risk model access is not enabled for your role"><span aria-hidden="true">✧</span>Risk model <small>Unavailable</small></span>
-                @endif
                 @if($canViewReports)
                     <a class="ops-tab" href="{{ route('reports.index') }}"><span aria-hidden="true">▤</span>Reports &amp; exports</a>
                 @else

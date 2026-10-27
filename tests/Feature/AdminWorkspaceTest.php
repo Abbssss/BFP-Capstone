@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Equipment;
+use App\Models\Inspection;
 use App\Models\Maintenance;
-use App\Models\RiskPrediction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -25,26 +25,62 @@ class AdminWorkspaceTest extends TestCase
             ->assertSee('class="app-topbar"', false)
             ->assertSee(now()->format('d M Y'))
             ->assertDontSee('Station date')
-            ->assertSee('Equipment readiness')
+            ->assertSee('Total Users')
+            ->assertSee('Total Equipment')
+            ->assertSee('Active Users')
+            ->assertSee('Low Priority')
+            ->assertSee('Medium Priority')
+            ->assertSee('High Priority')
+            ->assertSee('Equipment priorities')
+            ->assertSee('User management overview')
+            ->assertSee('Recent records')
             ->assertSee('Equipment records')
             ->assertSee('Inspections')
             ->assertSee('Maintenance')
             ->assertSee('Repairs')
             ->assertSee('Schedule')
             ->assertSee('Personnel')
-            ->assertSee('Predictions')
-            ->assertSee('Equipment status')
-            ->assertSee('Risk overview')
-            ->assertSee('Risk follow-up')
-            ->assertSee('Maintenance monitoring')
-            ->assertSee('Pending approvals')
-            ->assertSee('Due Today')
-            ->assertSee('Predictions')
-            ->assertSee('Defect Reports')
-            ->assertDontSee('Recommendation service')
-            ->assertDontSee('External recommendations')
+            ->assertDontSee('Predictions')
             ->assertDontSee('Accounts')
             ->assertDontSee('Roles &amp; Permissions', false);
+    }
+
+    public function test_admin_dashboard_only_lists_records_from_the_admin_office(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $sameOfficeUser = User::factory()->create(['role' => 'maintenance', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $otherOfficeUser = User::factory()->create(['role' => 'maintenance', 'status' => 'active', 'office_code' => 'STA-BANAO']);
+        $sameOfficeEquipment = Equipment::create([
+            'asset_code' => 'EQ-ADMIN-ANA',
+            'equipment_name' => 'Sta Ana Admin Equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'office_code' => 'STA-ANA',
+        ]);
+        $otherOfficeEquipment = Equipment::create([
+            'asset_code' => 'EQ-ADMIN-BANAO',
+            'equipment_name' => 'Sta Banao Admin Equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'office_code' => 'STA-BANAO',
+        ]);
+        Maintenance::create([
+            'equipment_id' => $sameOfficeEquipment->id,
+            'request_number' => 'REQ-ADMIN-ANA',
+            'maintenance_type' => 'Preventive service',
+            'status' => 'Scheduled',
+            'start_date' => today()->addDays(5),
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('Sta Ana Admin Equipment')
+            ->assertDontSee('Sta Banao Admin Equipment')
+            ->assertViewHas('metricEquipment', fn ($records) => $records->contains('asset_code', 'EQ-ADMIN-ANA')
+                && ! $records->contains('asset_code', 'EQ-ADMIN-BANAO'))
+            ->assertViewHas('metricUsers', fn ($records) => $records->contains('id', $sameOfficeUser->id)
+                && ! $records->contains('id', $otherOfficeUser->id));
     }
 
     public function test_super_admin_sidebar_groups_the_requested_sections(): void
@@ -63,7 +99,7 @@ class AdminWorkspaceTest extends TestCase
             ->assertSee('Personnel')
             ->assertSee('Roles &amp; Permissions', false)
             ->assertSee('Reports')
-            ->assertSee('Predictions')
+            ->assertDontSee('Predictions')
             ->assertSee('Defect Reports')
             ->assertSee('Audit Log')
             ->assertDontSee('Recommendation service')
@@ -72,40 +108,27 @@ class AdminWorkspaceTest extends TestCase
             ->assertDontSee('Create user account');
     }
 
-    public function test_super_admin_dashboard_shows_latest_equipment_risk_levels(): void
+    public function test_super_admin_dashboard_shows_schedule_based_equipment_priorities(): void
     {
         $superAdmin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
         $equipment = Equipment::create([
-            'asset_code' => 'EQ-DASH-RISK',
-            'equipment_name' => 'Dashboard risk equipment',
+            'asset_code' => 'EQ-DASH-PRIORITY',
+            'equipment_name' => 'Dashboard priority equipment',
             'category' => 'Fire Engine',
-            'status' => 'Operational',
-        ]);
-        RiskPrediction::create([
-            'equipment_id' => $equipment->id,
-            'prediction_label' => 'Low Risk',
-            'confidence' => 0.8,
-            'prediction_timestamp' => now()->subDay(),
-        ]);
-        RiskPrediction::create([
-            'equipment_id' => $equipment->id,
-            'prediction_label' => 'High Risk',
-            'confidence' => 0.9,
-            'prediction_timestamp' => now(),
+            'status' => 'Out of Service',
         ]);
 
         $response = $this->actingAs($superAdmin)->get('/dashboard');
 
         $response
             ->assertOk()
-            ->assertSee('Equipment risk levels')
-            ->assertSee('Dashboard risk equipment')
-            ->assertSee('High Risk')
-            ->assertSee('Low Risk');
-        $response->assertViewHas('riskLevels', [
-            'Low Risk' => 0,
-            'Medium Risk' => 0,
-            'High Risk' => 1,
+            ->assertSee('Equipment priorities')
+            ->assertSee('Dashboard priority equipment')
+            ->assertSee('High priority');
+        $response->assertViewHas('priorityCounts', [
+            'Low' => 0,
+            'Medium' => 0,
+            'High' => 1,
         ]);
     }
 
@@ -249,12 +272,12 @@ class AdminWorkspaceTest extends TestCase
             ->assertOk()
             ->assertSee('class="app-sidebar"', false)
             ->assertSee('class="app-topbar"', false)
-            ->assertSee('Daily equipment check')
+            ->assertSee('Maintenance overview')
             ->assertDontSee('maintenance-focus-date', false)
             ->assertDontSee('<small>Today</small>', false)
-            ->assertSee('My tasks today')
+            ->assertSee('My tasks by urgency')
             ->assertSee('Quick actions')
-            ->assertSee('Risk on assigned equipment')
+            ->assertSee('Priority of assigned equipment')
             ->assertSee('My upcoming schedule')
             ->assertDontSee('Recommendation service')
             ->assertDontSee('External recommendations');
@@ -314,8 +337,122 @@ class AdminWorkspaceTest extends TestCase
             ->assertOk()
             ->assertSee('Assigned Fire Pump')
             ->assertSee('Preventive service')
+            ->assertSee('FP-MAINT-001')
+            ->assertSee('maintenance-task-scroll')
+            ->assertDontSee('Serial ')
             ->assertDontSee('Other Fire Pump')
             ->assertDontSee('Unassigned service');
+    }
+
+    public function test_maintenance_dashboard_counts_assigned_inspections_and_saves_update_comments(): void
+    {
+        $maintenanceUser = User::factory()->create([
+            'name' => 'Inspection Maintenance User',
+            'role' => 'maintenance',
+            'status' => 'active',
+            'office_code' => 'STA-ANA',
+        ]);
+        $equipment = Equipment::create([
+            'asset_code' => 'EQ-MAINT-DASH-MIXED',
+            'equipment_name' => 'Mixed work dashboard equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'office_code' => 'STA-ANA',
+        ]);
+        $maintenance = Maintenance::create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'REQ-MIXED-DASHBOARD',
+            'maintenance_type' => 'Pump service',
+            'assigned_to_id' => $maintenanceUser->id,
+            'technician_name' => $maintenanceUser->name,
+            'priority' => 'Medium',
+            'status' => 'In Progress',
+            'start_date' => today(),
+        ]);
+        $inspection = Inspection::create([
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'priority' => 'High',
+            'reference_number' => 'INSP-MIXED-DASHBOARD',
+            'inspection_date' => now(),
+            'inspector_name' => $maintenanceUser->name,
+            'inspection_type' => 'Annual inspection',
+            'outcome' => 'Requires Further Assessment',
+            'status' => 'In Progress',
+        ]);
+        Inspection::create([
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'priority' => 'Low',
+            'reference_number' => 'INSP-MIXED-COMPLETED',
+            'inspection_date' => now()->startOfMonth()->addDays(2),
+            'inspector_name' => $maintenanceUser->name,
+            'inspection_type' => 'Completed inspection',
+            'outcome' => 'Passed',
+            'status' => 'Completed',
+        ]);
+        Inspection::create([
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'priority' => 'Medium',
+            'reference_number' => 'INSP-MIXED-OVERDUE',
+            'inspection_date' => today()->subDays(2),
+            'inspector_name' => $maintenanceUser->name,
+            'inspection_type' => 'Overdue inspection',
+            'outcome' => 'Requires Further Assessment',
+            'status' => 'Pending',
+        ]);
+
+        $this->actingAs($maintenanceUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('Annual inspection')
+            ->assertSee('Inspection')
+            ->assertSee('Update comment')
+            ->assertViewHas('tasksTodayCount', 2)
+            ->assertViewHas('inProgressCount', 2)
+            ->assertViewHas('completedThisMonthCount', 1)
+            ->assertViewHas('overdueCount', 1)
+            ->assertViewHas('todayTasks', fn ($tasks) => $tasks->contains('id', $inspection->id));
+
+        $this->patch(route('inspections.status', $inspection), [
+            'status' => 'In Progress',
+            'notes' => 'Pressure test is underway.',
+        ])->assertRedirect(route('inspections.index'));
+        $this->assertDatabaseHas('inspections', [
+            'id' => $inspection->id,
+            'notes' => 'Pressure test is underway.',
+        ]);
+
+        $this->patch(route('maintenances.status', $maintenance), [
+            'status' => 'In Progress',
+            'notes' => 'Pump inspection started.',
+        ])->assertRedirect(route('maintenances.index'));
+        $this->assertDatabaseHas('maintenances', [
+            'id' => $maintenance->id,
+            'notes' => 'Pump inspection started.',
+        ]);
+
+        $repair = Maintenance::create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'REQ-MIXED-DASHBOARD-REPAIR',
+            'maintenance_type' => 'Pump repair',
+            'reported_issue' => 'Pressure leak',
+            'assigned_to_id' => $maintenanceUser->id,
+            'technician_name' => $maintenanceUser->name,
+            'priority' => 'High',
+            'status' => 'Scheduled',
+            'start_date' => today(),
+        ]);
+
+        $this->patch(route('repairs.status', $repair), [
+            'status' => 'In Progress',
+            'notes' => 'Repair started after inspection.',
+        ])->assertRedirect(route('repairs.index'));
+        $this->assertDatabaseHas('maintenances', [
+            'id' => $repair->id,
+            'notes' => 'Repair started after inspection.',
+        ]);
     }
 
     public function test_maintenance_tasks_can_be_assigned_to_a_personnel_user_and_show_on_their_dashboard(): void
@@ -359,7 +496,7 @@ class AdminWorkspaceTest extends TestCase
         $this->assertDatabaseHas('maintenances', [
             'equipment_id' => $equipment->id,
             'assigned_to_id' => $maintenanceUser->id,
-            'request_number' => 'REQ-ASSIGNED-001',
+            'request_number' => 'TAS-'.today()->format('m-d-Y').'-00001',
         ]);
 
         $this->actingAs($admin)
@@ -398,13 +535,15 @@ class AdminWorkspaceTest extends TestCase
         $this->actingAs($admin)
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('Test Fire Pump')
-            ->assertSee('Preventive service')
-            ->assertSee('Pending');
+            ->assertSee('Recent records')
+            ->assertSee('REQ-TEST-001')
+            ->assertSee('Test Fire Pump');
 
         $this->get('/dashboard?maintenance_tab=completed')
             ->assertOk()
-            ->assertSee('No completed maintenance records yet.');
+            ->assertViewHas('recentActivity', fn ($activity) => $activity->contains(
+                fn (array $record) => str_contains($record['detail'], 'REQ-TEST-001')
+            ));
     }
 
     public function test_admin_can_open_all_screens_shown_in_the_operations_workspace(): void
@@ -414,6 +553,96 @@ class AdminWorkspaceTest extends TestCase
         foreach (['/repairs', '/schedule', '/personnel', '/defect-reports', '/approvals'] as $path) {
             $this->actingAs($admin)->get($path)->assertOk();
         }
+    }
+
+    public function test_admin_approves_completed_work_or_returns_it_for_further_assessment(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $maintenanceUser = User::factory()->create(['role' => 'maintenance', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $equipment = Equipment::create([
+            'asset_code' => 'EQ-APPROVAL-001',
+            'equipment_name' => 'Approval Test Equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'office_code' => 'STA-ANA',
+        ]);
+        $inspection = Inspection::create([
+            'equipment_id' => $equipment->id,
+            'assigned_to_id' => $maintenanceUser->id,
+            'priority' => 'High',
+            'reference_number' => 'INSP-APPROVAL-001',
+            'inspection_date' => now(),
+            'inspector_name' => $maintenanceUser->name,
+            'inspection_type' => 'Annual inspection',
+            'outcome' => 'Requires Further Assessment',
+            'status' => 'Completed',
+            'approval_status' => 'Pending',
+        ]);
+        $maintenance = Maintenance::create([
+            'equipment_id' => $equipment->id,
+            'request_number' => 'MAINT-APPROVAL-001',
+            'maintenance_type' => 'Preventive maintenance',
+            'assigned_to_id' => $maintenanceUser->id,
+            'priority' => 'Medium',
+            'status' => 'Completed',
+            'approval_status' => 'Pending',
+            'completion_date' => today(),
+        ]);
+        $otherOfficeEquipment = Equipment::create([
+            'asset_code' => 'EQ-APPROVAL-OTHER',
+            'equipment_name' => 'Other Office Equipment',
+            'category' => 'Fire Engine',
+            'status' => 'Operational',
+            'office_code' => 'STA-BANAO',
+        ]);
+        Inspection::create([
+            'equipment_id' => $otherOfficeEquipment->id,
+            'reference_number' => 'INSP-APPROVAL-OTHER',
+            'inspection_date' => now(),
+            'inspector_name' => 'Other Inspector',
+            'inspection_type' => 'Annual inspection',
+            'outcome' => 'Requires Further Assessment',
+            'status' => 'Completed',
+            'approval_status' => 'Pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('approvals.index'))
+            ->assertOk()
+            ->assertSee('INSP-APPROVAL-001')
+            ->assertSee('MAINT-APPROVAL-001')
+            ->assertDontSee('INSP-APPROVAL-OTHER')
+            ->assertViewHas('approvalRecords', fn ($records) => $records->count() === 2);
+
+        $this->actingAs($maintenanceUser)
+            ->get(route('approvals.index'))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->patch(route('approvals.update', ['inspection', $inspection->id]), [
+                'decision' => 'Requires Further Assessment',
+                'approval_notes' => 'Repeat the safety test.',
+            ])
+            ->assertRedirect(route('approvals.index'));
+        $this->assertDatabaseHas('inspections', [
+            'id' => $inspection->id,
+            'status' => 'In Progress',
+            'approval_status' => 'Requires Further Assessment',
+            'approval_notes' => 'Repeat the safety test.',
+            'reviewed_by_id' => $admin->id,
+        ]);
+
+        $this->patch(route('approvals.update', ['maintenance', $maintenance->id]), [
+            'decision' => 'Passed',
+            'approval_notes' => 'Work verified.',
+        ])->assertRedirect(route('approvals.index'));
+        $this->assertDatabaseHas('maintenances', [
+            'id' => $maintenance->id,
+            'status' => 'Completed',
+            'approval_status' => 'Passed',
+            'approval_notes' => 'Work verified.',
+            'reviewed_by_id' => $admin->id,
+        ]);
     }
 
     public function test_schedule_includes_maintenance_and_repairs(): void
@@ -454,7 +683,7 @@ class AdminWorkspaceTest extends TestCase
             ->assertSee('REPAIR-SCHEDULE-001');
     }
 
-    public function test_repairs_page_matches_record_list_and_links_to_repair_creation_and_details(): void
+    public function test_repairs_page_opens_a_modal_to_create_repair_records(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
         $equipment = Equipment::create([
@@ -477,7 +706,11 @@ class AdminWorkspaceTest extends TestCase
         $this->actingAs($admin)
             ->get('/repairs')
             ->assertOk()
-            ->assertSee('Add new')
+            ->assertSee('Add repair')
+            ->assertSee('data-modal-open="repair-create-modal"', false)
+            ->assertSee('id="repair-create-modal"', false)
+            ->assertSee('name="reported_issue"', false)
+            ->assertDontSee('href="'.route('maintenances.create', ['type' => 'Repair']).'"', false)
             ->assertDontSee('Create new')
             ->assertSee('Record')
             ->assertSee('Type')
@@ -485,11 +718,43 @@ class AdminWorkspaceTest extends TestCase
             ->assertSee('Status')
             ->assertSee('Repair · Pump repair')
             ->assertSee('Test Technician')
-            ->assertSee(route('maintenances.show', $repair));
+            ->assertSee('data-modal-open="repair-record-'.$repair->id.'"', false)
+            ->assertSee('Reported issue');
 
         $this->get(route('maintenances.create', ['type' => 'Repair']))
             ->assertOk()
             ->assertSee('value="Repair"', false);
+    }
+
+    public function test_repair_modal_submission_creates_repair_and_returns_to_repairs_page(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $equipment = Equipment::create([
+            'asset_code' => 'FP-REPAIR-MODAL-001',
+            'equipment_name' => 'Modal Repair Pump',
+            'category' => 'Pump',
+            'status' => 'Operational',
+            'office_code' => 'STA-ANA',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('maintenances.store'), [
+                '_form' => 'create-repair',
+                'equipment_id' => $equipment->id,
+                'maintenance_type' => 'Pump repair',
+                'priority' => 'High',
+                'status' => 'Pending',
+                'reported_issue' => 'Pump is leaking.',
+            ])
+            ->assertRedirect(route('repairs.index'))
+            ->assertSessionHas('success', 'Repair record saved.');
+
+        $this->assertDatabaseHas('maintenances', [
+            'equipment_id' => $equipment->id,
+            'request_number' => 'MOD-'.today()->format('m-d-Y').'-00001',
+            'maintenance_type' => 'Pump repair',
+            'reported_issue' => 'Pump is leaking.',
+        ]);
     }
 
     public function test_super_admin_can_change_role_module_access_and_changes_are_enforced(): void

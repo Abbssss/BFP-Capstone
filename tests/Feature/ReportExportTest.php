@@ -13,7 +13,7 @@ class ReportExportTest extends TestCase
 
     public function test_reports_page_supports_configuration_and_preview(): void
     {
-        $user = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $user = User::factory()->create(['role' => 'super_admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
 
         $this->actingAs($user)
             ->get('/reports?report=user-activity&period=all&group_by=role')
@@ -25,6 +25,74 @@ class ReportExportTest extends TestCase
             ->assertSee('Export PDF')
             ->assertSee('Export Excel')
             ->assertSee('1 record');
+    }
+
+    public function test_reports_are_scoped_to_the_current_office_for_admin_and_maintenance_users(): void
+    {
+        foreach (['admin', 'maintenance'] as $role) {
+            $user = User::factory()->create([
+                'role' => $role,
+                'status' => 'active',
+                'office_code' => 'STA-ANA',
+            ]);
+            Equipment::query()->create([
+                'asset_code' => 'EQ-OFFICE-OWN-'.$role,
+                'equipment_name' => 'Own Office Equipment',
+                'category' => 'Fire Pump',
+                'status' => 'Operational',
+                'office_code' => 'STA-ANA',
+            ]);
+            Equipment::query()->create([
+                'asset_code' => 'EQ-OFFICE-OTHER-'.$role,
+                'equipment_name' => 'Other Office Equipment',
+                'category' => 'Fire Pump',
+                'status' => 'Operational',
+                'office_code' => 'STA-BANAO',
+            ]);
+
+            $this->actingAs($user)
+                ->get('/reports?report=equipment-registry&period=all&group_by=category&office_code=STA-BANAO')
+                ->assertOk()
+                ->assertSee('Own Office Equipment')
+                ->assertDontSee('Other Office Equipment')
+                ->assertSee('STA-ANA')
+                ->assertDontSee('name="office_code"', false);
+        }
+    }
+
+    public function test_super_admin_can_filter_reports_by_office_code(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'status' => 'active',
+            'office_code' => null,
+        ]);
+        Equipment::query()->create([
+            'asset_code' => 'EQ-SUPER-ANA',
+            'equipment_name' => 'Sta Ana Equipment',
+            'category' => 'Fire Pump',
+            'status' => 'Operational',
+            'office_code' => 'STA-ANA',
+        ]);
+        Equipment::query()->create([
+            'asset_code' => 'EQ-SUPER-BANAO',
+            'equipment_name' => 'Sta Banao Equipment',
+            'category' => 'Fire Pump',
+            'status' => 'Operational',
+            'office_code' => 'STA-BANAO',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->get('/reports?report=equipment-registry&period=all&group_by=category&office_code=STA-ANA')
+            ->assertOk()
+            ->assertSee('Sta Ana Equipment')
+            ->assertSee('name="office_code"', false)
+            ->assertViewHas('records', function ($records): bool {
+                $equipment = collect($records)->pluck('values')->pluck('Equipment');
+
+                return $equipment->contains('Sta Ana Equipment')
+                    && ! $equipment->contains('Sta Banao Equipment');
+            });
     }
 
     public function test_csv_export_contains_filtered_records_and_is_excel_compatible(): void
@@ -55,7 +123,7 @@ class ReportExportTest extends TestCase
 
     public function test_pdf_export_returns_a_pdf_download(): void
     {
-        $user = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
+        $user = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
 
         $response = $this->actingAs($user)
             ->get('/reports/export/pdf?report=user-activity&period=all&group_by=role');
@@ -64,6 +132,18 @@ class ReportExportTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
         $this->assertStringContainsString('.pdf', (string) $response->headers->get('content-disposition'));
         $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
+    }
+
+    public function test_operational_roles_cannot_open_user_activity_or_audit_reports(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'office_code' => 'STA-ANA']);
+
+        $this->actingAs($admin)
+            ->get('/reports?report=user-activity')
+            ->assertForbidden();
+
+        $this->get('/reports?report=audit-activity')
+            ->assertForbidden();
     }
 
     public function test_excel_export_returns_a_valid_xlsx_workbook(): void

@@ -195,7 +195,7 @@ class OfficeCodeIsolationTest extends TestCase
         ])->assertSessionHasErrors('equipment_id');
     }
 
-    public function test_admin_cannot_assign_equipment_to_another_office_or_override_its_own_code(): void
+    public function test_admin_creation_uses_its_own_office_code_and_does_not_assign_personnel(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -209,28 +209,28 @@ class OfficeCodeIsolationTest extends TestCase
         ]);
 
         $this->actingAs($admin)->from('/equipment')->post('/equipment', [
-            'equipment_name' => 'Invalid cross-office equipment',
-            'category' => 'Portable Water Pump',
+            'equipment_name' => 'Office-scoped equipment',
+            'category' => 'Mechanical',
             'office_code' => 'OTHER-02',
             'status' => 'Operational',
             'assigned_personnel' => $otherPersonnel->id,
+            'asset_tag' => 'INVALID-CROSS-OFFICE-TAG',
+            'serial_number' => 'INVALID-CROSS-OFFICE-SERIAL',
+            'manufacturer' => 'Test Maker',
+            'model' => 'Test Model',
+            'location' => 'Test location',
+            'commission_date' => today()->toDateString(),
         ])->assertRedirect('/equipment')
-            ->assertSessionHasErrors('assigned_personnel');
-
-        $this->post('/equipment', [
-            'equipment_name' => 'Office-owned equipment',
-            'category' => 'Portable Water Pump',
-            'office_code' => 'OTHER-02',
-            'status' => 'Operational',
-        ])->assertRedirect('/equipment');
+            ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('equipment', [
-            'equipment_name' => 'Office-owned equipment',
+            'equipment_name' => 'Office-scoped equipment',
             'office_code' => 'ANA-01',
+            'assigned_personnel' => null,
         ]);
     }
 
-    public function test_admin_can_assign_equipment_to_personnel_in_the_same_office(): void
+    public function test_equipment_creation_does_not_assign_personnel(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -246,26 +246,30 @@ class OfficeCodeIsolationTest extends TestCase
         $this->actingAs($admin)
             ->get('/equipment')
             ->assertOk()
-            ->assertSee('data-equipment-office-code', false)
-            ->assertSee('data-equipment-personnel-select', false)
-            ->assertSee('data-office-code="ANA-01"', false);
+            ->assertSee('data-equipment-office-code', false);
 
         $this->post('/equipment', [
             'equipment_name' => 'Assigned office equipment',
-            'category' => 'Fire Engine',
+            'category' => 'Mechanical',
             'status' => 'Operational',
             'assigned_personnel' => $personnel->id,
+            'asset_tag' => 'ASSIGNED-OFFICE-TAG',
+            'serial_number' => 'ASSIGNED-OFFICE-SERIAL',
+            'manufacturer' => 'Test Maker',
+            'model' => 'Test Model',
+            'location' => 'Test location',
+            'commission_date' => today()->toDateString(),
         ])->assertRedirect('/equipment')
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('equipment', [
             'equipment_name' => 'Assigned office equipment',
             'office_code' => 'ANA-01',
-            'assigned_personnel' => $personnel->id,
+            'assigned_personnel' => null,
         ]);
     }
 
-    public function test_super_admin_can_choose_personnel_before_entering_the_equipment_office_code(): void
+    public function test_super_admin_can_create_equipment_with_an_explicit_office_code(): void
     {
         $superAdmin = User::factory()->create([
             'role' => 'super_admin',
@@ -282,22 +286,28 @@ class OfficeCodeIsolationTest extends TestCase
         $this->actingAs($superAdmin)
             ->get('/equipment')
             ->assertOk()
-            ->assertSee('Selectable Personnel')
-            ->assertSee('Select a person to automatically set the equipment office code.');
+            ->assertDontSee('Selectable Personnel')
+            ->assertDontSee('Select a person to automatically set the equipment office code.');
 
         $this->post('/equipment', [
             'equipment_name' => 'Super Admin Assigned Equipment',
-            'category' => 'Fire Engine',
+            'category' => 'Mechanical',
             'office_code' => 'ANA-01',
             'status' => 'Operational',
             'assigned_personnel' => $personnel->id,
+            'asset_tag' => 'SUPER-ADMIN-TAG',
+            'serial_number' => 'SUPER-ADMIN-SERIAL',
+            'manufacturer' => 'Test Maker',
+            'model' => 'Test Model',
+            'location' => 'Test location',
+            'commission_date' => today()->toDateString(),
         ])->assertRedirect('/equipment')
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('equipment', [
             'equipment_name' => 'Super Admin Assigned Equipment',
             'office_code' => 'ANA-01',
-            'assigned_personnel' => $personnel->id,
+            'assigned_personnel' => null,
         ]);
     }
 

@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Equipment;
-use App\Models\EquipmentCategory;
 use App\Models\EquipmentStatusHistory;
+use App\Models\Inspection;
+use App\Models\Maintenance;
 use App\Models\User;
+use App\Services\EquipmentPriorityService;
+use App\Services\RolePermissionService;
 use App\Support\OfficeScope;
+use App\Support\SearchQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,22 +36,24 @@ class EquipmentController extends Controller
         $archiveCount = (clone $scopedEquipment)
             ->whereIn('status', ['Out of Service', 'Retired'])
             ->count();
-        $equipmentQuery = (clone $scopedEquipment)->with('assignedUser', 'latestRiskPrediction')
+        $equipmentQuery = (clone $scopedEquipment)->with('assignedUser', 'latestInspection', 'maintenances')
             ->when(
                 $isArchive,
                 fn ($query) => $query->whereIn('status', ['Out of Service', 'Retired']),
                 fn ($query) => $query->whereNotIn('status', ['Out of Service', 'Retired'])
             )
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('equipment_name', 'like', '%'.$search.'%')
-                        ->orWhere('asset_code', 'like', '%'.$search.'%')
-                        ->orWhere('location', 'like', '%'.$search.'%');
-                });
-            })
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['category'] ?? null, fn ($query, $category) => $query->where('category', $category));
+        SearchQuery::apply($equipmentQuery, $filters['search'] ?? null, [
+            'equipment_name', 'asset_code', 'asset_tag', 'serial_number', 'category',
+            'manufacturer', 'model', 'location', 'office_code', 'status',
+        ], ['assignedUser' => ['name']]);
         $equipment = $equipmentQuery->latest()->paginate(10)->withQueryString();
+        $equipment->getCollection()->transform(function (Equipment $item): Equipment {
+            $item->setAttribute('maintenance_priority', app(EquipmentPriorityService::class)->assess($item));
+
+            return $item;
+        });
         $users = OfficeScope::personnel(User::query())->whereNotNull('office_code')->orderBy('name')->get();
         $equipmentOptions = OfficeScope::equipment(Equipment::query())->orderBy('equipment_name')->get();
         $statuses = (clone $scopedEquipment)
@@ -60,17 +66,16 @@ class EquipmentController extends Controller
             ->distinct()
             ->orderBy('status')
             ->pluck('status');
-        $categories = EquipmentCategory::query()->orderBy('name')->pluck('name');
+        $categories = Equipment::CATEGORIES;
 
         return view('equipment.index', compact('equipment', 'users', 'equipmentOptions', 'statuses', 'categories', 'isArchive', 'archiveCount'));
     }
 
     public function create(): View
     {
-        $users = OfficeScope::personnel(User::query())->whereNotNull('office_code')->orderBy('name')->get();
-        $categories = EquipmentCategory::query()->orderBy('name')->pluck('name');
+        $categories = Equipment::CATEGORIES;
 
-        return view('equipment.create', compact('users', 'categories'));
+        return view('equipment.create', compact('categories'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -78,33 +83,18 @@ class EquipmentController extends Controller
         $officeCode = $request->user()->role === 'super_admin'
             ? strtoupper(trim((string) $request->input('office_code')))
             : $request->user()->office_code;
-        $assignedUserRule = Rule::exists('users', 'id')
-            ->where(fn ($query) => $query->where('role', '<>', 'super_admin'))
-            ->where(filled($officeCode)
-                ? fn ($query) => $query->where('office_code', $officeCode)
-                : fn ($query) => $query->whereRaw('1 = 0'));
         $validated = $request->validate([
             'equipment_name' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', Rule::exists('equipment_categories', 'name')],
+            'category' => ['required', 'string', Rule::in(Equipment::CATEGORIES)],
             'office_code' => [Rule::requiredIf($request->user()->role === 'super_admin'), 'nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
-            'asset_tag' => ['nullable', 'string', 'unique:equipment,asset_tag'],
-            'serial_number' => ['nullable', 'string', 'unique:equipment,serial_number'],
-            'manufacturer' => ['nullable', 'string'],
-            'model' => ['nullable', 'string'],
-            'commission_date' => ['nullable', 'date'],
-            'location' => ['nullable', 'string'],
-            'assigned_personnel' => ['nullable', $assignedUserRule],
+            'asset_tag' => ['required', 'string', 'unique:equipment,asset_tag'],
+            'serial_number' => ['required', 'string', 'unique:equipment,serial_number'],
+            'manufacturer' => ['required', 'string'],
+            'model' => ['required', 'string'],
+            'commission_date' => ['required', 'date'],
+            'location' => ['required', 'string'],
             'status' => ['required', 'string'],
-            'service_age_years' => ['nullable', 'integer'],
-            'engine_operating_hours' => ['nullable', 'integer'],
-            'runtime_cycles' => ['nullable', 'integer'],
-            'mechanical_failure_count' => ['nullable', 'integer'],
-            'last_inspection_date' => ['nullable', 'date'],
-            'next_inspection_date' => ['nullable', 'date'],
-            'last_maintenance_date' => ['nullable', 'date'],
-            'maintenance_interval_days' => ['nullable', 'integer'],
             'description' => ['nullable', 'string'],
-            'remarks' => ['nullable', 'string'],
         ]);
 
         $validated['office_code'] = $officeCode ?: null;
@@ -130,11 +120,86 @@ class EquipmentController extends Controller
         return view('equipment.show', compact('equipment'));
     }
 
+    public function records(string $id, RolePermissionService $permissions): View
+    {
+        $equipment = OfficeScope::equipment(Equipment::query())->with('assignedUser')->findOrFail($id);
+        $user = request()->user();
+        $records = collect();
+
+        if ($permissions->allows($user->role, 'inspections')) {
+            $records = $records->concat(OfficeScope::records(Inspection::query())
+                ->with('equipment')
+                ->where('equipment_id', $equipment->id)
+                ->get()
+                ->map(fn (Inspection $inspection) => [
+                    'type' => 'Inspection',
+                    'reference' => $inspection->reference_number,
+                    'date' => $inspection->inspection_date,
+                    'details' => $inspection->inspection_type.' · '.$inspection->outcome,
+                    'url' => route('inspections.show', $inspection),
+                    'status_url' => route('inspections.status', $inspection),
+                    'model' => $inspection,
+                ]));
+        }
+
+        if ($permissions->allows($user->role, 'maintenance')) {
+            $maintenanceRecords = OfficeScope::records(Maintenance::query())
+                ->with('equipment.assignedUser', 'assignedTo')
+                ->where('equipment_id', $equipment->id)
+                ->whereRaw('LOWER(maintenance_type) NOT LIKE ?', ['%repair%'])
+                ->where(function ($query) {
+                    $query->whereRaw('LOWER(maintenance_type) LIKE ?', ['%preventive%'])
+                        ->orWhereNull('reported_issue')
+                        ->orWhere('reported_issue', '');
+                })
+                ->get()
+                ->map(fn (Maintenance $maintenance) => [
+                    'type' => 'Maintenance',
+                    'reference' => $maintenance->request_number,
+                    'date' => $maintenance->completion_date ?? $maintenance->start_date,
+                    'details' => $maintenance->maintenance_type.' · '.$maintenance->status,
+                    'url' => route('maintenances.show', $maintenance),
+                    'status_url' => route('maintenances.status', $maintenance),
+                    'model' => $maintenance,
+                ]);
+            $records = $records->concat($maintenanceRecords);
+        }
+
+        if ($permissions->allows($user->role, 'repairs')) {
+            $repairs = OfficeScope::records(Maintenance::query())
+                ->with('equipment.assignedUser', 'assignedTo')
+                ->where('equipment_id', $equipment->id)
+                ->where(function ($query) {
+                    $query->whereRaw('LOWER(maintenance_type) LIKE ?', ['%repair%'])
+                        ->orWhere(function ($query) {
+                            $query->whereRaw('LOWER(maintenance_type) NOT LIKE ?', ['%preventive%'])
+                                ->whereNotNull('reported_issue')
+                                ->where('reported_issue', '<>', '');
+                        });
+                })
+                ->get()
+                ->map(fn (Maintenance $repair) => [
+                    'type' => 'Repair',
+                    'reference' => $repair->request_number,
+                    'date' => $repair->completion_date ?? $repair->start_date,
+                    'details' => $repair->reported_issue ?: $repair->maintenance_type.' · '.$repair->status,
+                    'url' => route('maintenances.show', $repair),
+                    'status_url' => route('repairs.status', $repair),
+                    'model' => $repair,
+                ]);
+            $records = $records->concat($repairs);
+        }
+
+        $records = $records->sortByDesc(fn (array $record) => $record['date']?->timestamp ?? 0)->values();
+
+        return view('equipment.records', compact('equipment', 'records'));
+    }
+
     public function edit(string $id): View
     {
         $equipment = OfficeScope::equipment(Equipment::query())->findOrFail($id);
         $users = OfficeScope::personnel(User::query())->orderBy('name')->get();
-        $categories = EquipmentCategory::query()->orderBy('name')->pluck('name');
+        $categories = Equipment::CATEGORIES;
 
         return view('equipment.edit', compact('equipment', 'users', 'categories'));
     }
@@ -155,10 +220,6 @@ class EquipmentController extends Controller
                 : fn ($query) => $query->whereRaw('1 = 0'));
         if ($request->user()->role === 'maintenance') {
             $validated = $request->validate([
-                'service_age_years' => ['nullable', 'integer', 'min:0'],
-                'engine_operating_hours' => ['nullable', 'integer', 'min:0'],
-                'runtime_cycles' => ['nullable', 'integer', 'min:0'],
-                'mechanical_failure_count' => ['nullable', 'integer', 'min:0'],
                 'last_inspection_date' => ['nullable', 'date'],
                 'next_inspection_date' => ['nullable', 'date'],
                 'last_maintenance_date' => ['nullable', 'date'],
@@ -170,7 +231,7 @@ class EquipmentController extends Controller
         } else {
             $validated = $request->validate([
                 'equipment_name' => ['required', 'string', 'max:255'],
-                'category' => ['required', 'string', Rule::exists('equipment_categories', 'name')],
+                'category' => ['required', 'string', Rule::in(Equipment::CATEGORIES)],
                 'office_code' => [Rule::requiredIf($request->user()->role === 'super_admin'), 'nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
                 'asset_tag' => ['nullable', 'string', 'unique:equipment,asset_tag,'.$equipment->id],
                 'serial_number' => ['nullable', 'string', 'unique:equipment,serial_number,'.$equipment->id],
@@ -180,17 +241,7 @@ class EquipmentController extends Controller
                 'location' => ['nullable', 'string'],
                 'assigned_personnel' => ['nullable', $assignedUserRule],
                 'status' => ['required', 'string'],
-                'service_age_years' => ['nullable', 'integer'],
-                'engine_operating_hours' => ['nullable', 'integer'],
-                'runtime_cycles' => ['nullable', 'integer'],
-                'mechanical_failure_count' => ['nullable', 'integer'],
-                'last_inspection_date' => ['nullable', 'date'],
-                'next_inspection_date' => ['nullable', 'date'],
-                'last_maintenance_date' => ['nullable', 'date'],
-                'maintenance_interval_days' => ['nullable', 'integer'],
                 'description' => ['nullable', 'string'],
-                'remarks' => ['nullable', 'string'],
-                'last_inspection_outcome' => ['nullable', 'string', 'max:255'],
             ]);
 
             $validated['office_code'] = $officeCode ?: null;
@@ -209,20 +260,6 @@ class EquipmentController extends Controller
         $equipment->update($validated);
 
         return redirect()->route('equipment.index')->with('success', 'Equipment updated successfully.');
-    }
-
-    public function storeCategory(Request $request): RedirectResponse
-    {
-        abort_unless($request->user()->role === 'super_admin', 403);
-        $request->merge(['name' => trim((string) $request->input('name'))]);
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:equipment_categories,name'],
-        ]);
-
-        EquipmentCategory::create(['name' => trim($validated['name'])]);
-
-        return redirect()->route('equipment.index')->with('success', 'Equipment category added successfully.');
     }
 
     public function import(Request $request): RedirectResponse
@@ -287,11 +324,9 @@ class EquipmentController extends Controller
                     'manufacturer' => ($row['manufacturer'] ?? '') !== '' ? $row['manufacturer'] : null,
                     'model' => ($row['model'] ?? '') !== '' ? $row['model'] : null,
                     'location' => ($row['location'] ?? '') !== '' ? $row['location'] : null,
-                    'commission_date' => ($row['commission_date'] ?? '') !== '' ? $row['commission_date'] : null,
-                    'service_age_years' => ($row['service_age_years'] ?? '') !== '' ? $row['service_age_years'] : 0,
-                    'engine_operating_hours' => ($row['engine_operating_hours'] ?? '') !== '' ? $row['engine_operating_hours'] : null,
-                    'runtime_cycles' => ($row['runtime_cycles'] ?? '') !== '' ? $row['runtime_cycles'] : null,
-                    'mechanical_failure_count' => ($row['mechanical_failure_count'] ?? '') !== '' ? $row['mechanical_failure_count'] : 0,
+                    'commission_date' => ($row['date_acquired'] ?? $row['commission_date'] ?? '') !== ''
+                        ? ($row['date_acquired'] ?? $row['commission_date'])
+                        : null,
                     'last_inspection_date' => ($row['last_inspection_date'] ?? '') !== '' ? $row['last_inspection_date'] : null,
                     'next_inspection_date' => ($row['next_inspection_date'] ?? '') !== '' ? $row['next_inspection_date'] : null,
                     'last_maintenance_date' => ($row['last_maintenance_date'] ?? '') !== '' ? $row['last_maintenance_date'] : null,
@@ -301,7 +336,7 @@ class EquipmentController extends Controller
                 ];
                 $validator = Validator::make($data, [
                     'equipment_name' => ['required', 'string', 'max:255'],
-                    'category' => ['required', 'string', Rule::exists('equipment_categories', 'name')],
+                    'category' => ['required', 'string', Rule::in(Equipment::CATEGORIES)],
                     'office_code' => [
                         Rule::requiredIf($request->user()->role === 'super_admin'),
                         'nullable',
@@ -317,10 +352,6 @@ class EquipmentController extends Controller
                     'model' => ['nullable', 'string', 'max:255'],
                     'location' => ['nullable', 'string', 'max:255'],
                     'commission_date' => ['nullable', 'date'],
-                    'service_age_years' => ['nullable', 'integer', 'min:0'],
-                    'engine_operating_hours' => ['nullable', 'integer', 'min:0'],
-                    'runtime_cycles' => ['nullable', 'integer', 'min:0'],
-                    'mechanical_failure_count' => ['nullable', 'integer', 'min:0'],
                     'last_inspection_date' => ['nullable', 'date'],
                     'next_inspection_date' => ['nullable', 'date'],
                     'last_maintenance_date' => ['nullable', 'date'],
@@ -386,8 +417,7 @@ class EquipmentController extends Controller
             $output = fopen('php://output', 'w');
             fputcsv($output, [
                 'equipment_name', 'category', 'office_code', 'status', 'asset_code',
-                'asset_tag', 'serial_number', 'manufacturer', 'model', 'location', 'commission_date',
-                'service_age_years', 'engine_operating_hours', 'runtime_cycles', 'mechanical_failure_count',
+                'asset_tag', 'serial_number', 'manufacturer', 'model', 'location', 'date_acquired',
                 'last_inspection_date', 'next_inspection_date', 'last_maintenance_date',
                 'maintenance_interval_days', 'description', 'remarks',
             ]);
