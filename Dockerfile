@@ -23,15 +23,21 @@ RUN apt-get update \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --prefer-dist \
+    --no-scripts
+
 COPY . .
 COPY --from=frontend /app/public/build ./public/build
 
-RUN composer install \
+RUN composer dump-autoload \
         --no-dev \
+        --optimize \
         --no-interaction \
-        --no-progress \
-        --prefer-dist \
-        --optimize-autoloader \
     && mkdir -p \
         storage/app/private \
         storage/app/public \
