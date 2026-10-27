@@ -43,6 +43,7 @@ class RecentProjectChanges
                         'title' => $equipment->created_at?->equalTo($equipment->updated_at) ? 'Equipment registered' : 'Equipment updated',
                         'detail' => $equipment->equipment_name.' · '.$equipment->asset_code,
                         'date' => $equipment->updated_at,
+                        'url' => route('equipment.records', $equipment),
                     ]))
                 ->concat($statusHistoryQuery
                     ->with('equipment')
@@ -53,6 +54,9 @@ class RecentProjectChanges
                         'title' => 'Equipment status changed',
                         'detail' => ($history->equipment?->equipment_name ?? 'Equipment').' · '.$history->old_status.' → '.$history->new_status,
                         'date' => $history->changed_at,
+                        'url' => $history->equipment
+                            ? route('equipment.records', $history->equipment)
+                            : route('equipment.index'),
                     ]));
         }
 
@@ -71,6 +75,7 @@ class RecentProjectChanges
                     'title' => $inspection->created_at?->equalTo($inspection->updated_at) ? 'Inspection recorded' : 'Inspection updated',
                     'detail' => $inspection->reference_number.' · '.$inspection->equipment?->equipment_name,
                     'date' => $inspection->updated_at,
+                    'url' => route('inspections.show', $inspection),
                 ]));
         }
 
@@ -92,6 +97,7 @@ class RecentProjectChanges
                     'title' => $maintenance->created_at?->equalTo($maintenance->updated_at) ? 'Maintenance recorded' : 'Maintenance updated',
                     'detail' => $maintenance->request_number.' · '.$maintenance->equipment?->equipment_name,
                     'date' => $maintenance->updated_at,
+                    'url' => route('maintenances.show', $maintenance),
                 ]));
         }
 

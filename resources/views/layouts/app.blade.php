@@ -53,11 +53,11 @@
                         <section class="app-notification-panel" aria-label="Latest project changes">
                             <h2>Latest changes</h2>
                             @forelse($recentProjectChanges as $change)
-                                <article class="app-notification-item">
+                                <a class="app-notification-item" href="{{ $change['url'] }}">
                                     <strong>{{ $change['title'] }}</strong>
                                     <span>{{ $change['detail'] }}</span>
                                     <time datetime="{{ $change['date']?->toISOString() }}">{{ $change['date']?->diffForHumans() }}</time>
-                                </article>
+                                </a>
                             @empty
                                 <p class="app-notification-empty">No recent changes for your office.</p>
                             @endforelse
