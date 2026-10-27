@@ -28,8 +28,6 @@ services:
         value: database
       - key: QUEUE_CONNECTION
         value: database
-      - key: PYTHON_BINARY
-        value: /opt/venv/bin/python
 
 databases:
   - name: bfp-capstone-db
